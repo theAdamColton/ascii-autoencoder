@@ -1,0 +1,10 @@
+data_aggregation/data/
+__pycache__/
+__pycache__
+models/*
+./character_embeddings/character_embeddings*
+**/*.npy
+**/*.tar.gz
+**/*.png
+./character_embeddings/out/*
+.idea
