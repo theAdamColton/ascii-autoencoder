@@ -15,6 +15,7 @@ import re
 import bpdb
 
 DATADIR = path.abspath(path.join(path.dirname(__name__), "data_aggregation/data/"))
+import utils
 
 
 class AsciiArtDataset(Dataset):
@@ -168,7 +169,7 @@ class AsciiArtDataset(Dataset):
         return list(d)
 
     def __get_category_string_from_datapath(self, datapath: str) -> str:
-        return path.dirname(datapath).removeprefix(DATADIR)
+        return utils.remove_prefix(path.dirname(datapath), DATADIR)
 
     def decode(self, x) -> str:
         """Takes a matrix of character embeddings, returns a string with correct line breaks"""

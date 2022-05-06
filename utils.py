@@ -149,6 +149,11 @@ def plot_train_loss(df=[], arr_list=[""], figname="training_loss.png"):
     plt.tight_layout()
     fig.savefig(figname)
 
+def remove_prefix(text, prefix):
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    raise Exception("No prefix")
+
 
 def weights_init(m):
     """
