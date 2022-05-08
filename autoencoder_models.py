@@ -55,7 +55,9 @@ class VAE(nn.Module):
             nn.BatchNorm2d(n_channels * 2),
             nn.ReLU(),
             nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0),
-            nn.Sigmoid(),
+            # Applies softmax to every channel
+            # This only makes sense if using one hot encoding
+            nn.Softmax(dim=1),
         )
 
     def reparameterize(self, mu, logvar):

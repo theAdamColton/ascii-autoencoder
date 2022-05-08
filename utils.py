@@ -3,6 +3,7 @@
 
 import os
 import numpy as np
+from scipy import signal
 
 from torch.autograd import Variable
 from torch.autograd import grad as torch_grad
@@ -192,3 +193,17 @@ def debug_model(model, input_tensor):
         print(m, output.shape)
     return output
 
+
+
+def gkern(kernlen, std):
+    """Returns a 2D Gaussian kernel array."""
+    gkern1d = signal.gaussian(kernlen, std=std).reshape(kernlen, 1)
+    gkern2d = np.outer(gkern1d, gkern1d)
+    return gkern2d
+
+def norm_gkern(kernlen, std=1):
+    """Returns a 2D Gaussian kernel array that sums to 1, with no negative elements"""
+    k = gkern(kernlen, std)
+    k /= k.sum()
+    k[k<0] = 0
+    return k

@@ -45,8 +45,8 @@ def main():
         default=0,
         help="Number of dataset workers, not compatible with --keep-training-data-on-gpu",
     )
-
     parser.add_argument("--learning-rate", dest="learning_rate", default=5e-5, type=float)
+    parser.add_argument("--centralize-loss", dest="centralize_loss", default=False, help="Make the less greater for areas in the center of the image")
     parser.add_argument(
         "-b", "--batch_size", dest="batch_size", default=64, type=int, help="Batch size"
     )
@@ -108,9 +108,15 @@ def main():
     vae.cuda()
     bce_loss = nn.BCELoss()
     bce_loss.cuda()
+    mse_loss = nn.MSELoss()
+    mse_loss.cuda()
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
     Tensor = torch.cuda.FloatTensor
     device = torch.device("cuda")
+
+    if args.centralize_loss:
+        loss_filter = utils.norm_gkern(args.res, 0.5)
+        loss_filter = Tensor(loss_filter)
 
     if args.load:
         vae.load_state_dict(
@@ -150,6 +156,7 @@ def main():
             print(dataset.decode(image))
             print(label)
             print(dataset.decode(gen_im[0].detach()))
+            bpdb.set_trace()
         print("Epoch [{}/{}] Loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size))
 
         if epoch % args.save_every == 0:
