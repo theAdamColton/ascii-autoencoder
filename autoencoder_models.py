@@ -17,6 +17,10 @@ class UnFlatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), self.size, 1, 1)
 
+class ArgMax(nn.Module):
+    def forward(self, input):
+        return torch.argmax(input, 1)
+
 
 class VAE(nn.Module):
     def __init__(self, n_channels=3, h_dim=512, z_dim=32):
@@ -60,8 +64,8 @@ class VAE(nn.Module):
             nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0),
             # Applies softmax to every channel
             # This only makes sense if using one hot encoding
-            ##nn.Softmax(dim=1),
-            nn.Sigmoid()
+            nn.Softmax(dim=1),
+            ArgMax(),
         )
 
     def reparameterize(self, mu, logvar):

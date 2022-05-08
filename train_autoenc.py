@@ -121,7 +121,7 @@ def main():
 
     if args.focus_loss:
         # Gauss filter with mean and std
-        loss_filter = 0.6 + utils.gkern(args.res, 0.7)
+        loss_filter = utils.gkern(args.res, 5.0)
         loss_filter = Tensor(loss_filter)
     else:
         loss_filter = None
@@ -150,7 +150,7 @@ def main():
 
             labels = data[1]
             gen_im, mu, logvar = vae(images)
-            loss = vae_loss(gen_im, images, mu, logvar, mse_loss, loss_filter=loss_filter)
+            loss = vae_loss(gen_im, images, mu, logvar, loss_fn, loss_filter=loss_filter)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -172,7 +172,7 @@ def main():
             print("Saving...")
             save(vae, epoch, "./models/{}/".format(args.run_name))
 
-    save(vae, epoch, "./models/{}/".format(args.run_name))
+    save(vae, args.n_epochs, "./models/{}/".format(args.run_name))
 
 
 
