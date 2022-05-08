@@ -46,7 +46,7 @@ def main():
         help="Number of dataset workers, not compatible with --keep-training-data-on-gpu",
     )
     parser.add_argument("--learning-rate", dest="learning_rate", default=5e-5, type=float)
-    parser.add_argument("--centralize-loss", dest="centralize_loss", default=False, help="Make the less greater for areas in the center of the image")
+    parser.add_argument("--focus-loss", dest="focus_loss", default=False, help="Make the less greater for areas in the center of the image")
     parser.add_argument(
         "-b", "--batch_size", dest="batch_size", default=64, type=int, help="Batch size"
     )
@@ -104,19 +104,20 @@ def main():
         pin_memory=not args.keep_training_data_on_gpu,
     )
 
-    vae = VAE(n_channels=channels, z_dim=z_dim)
+    vae = VAE(n_channels=channels, z_dim=z_dim, h_dim=512)
     vae.cuda()
-    bce_loss = nn.BCELoss()
+    bce_loss = nn.BCELoss(reduction='none')
     bce_loss.cuda()
-    mse_loss = nn.MSELoss()
-    mse_loss.cuda()
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
     Tensor = torch.cuda.FloatTensor
     device = torch.device("cuda")
 
-    if args.centralize_loss:
-        loss_filter = utils.norm_gkern(args.res, 0.5)
+    if args.focus_loss:
+        # Gauss filter with mean and std
+        loss_filter = 0.6 + utils.gkern(args.res, 0.7)
         loss_filter = Tensor(loss_filter)
+    else:
+        loss_filter = None
 
     if args.load:
         vae.load_state_dict(
@@ -142,7 +143,7 @@ def main():
 
             labels = data[1]
             gen_im, mu, logvar = vae(images)
-            loss = vae_loss(gen_im, images, mu, logvar, bce_loss)
+            loss = vae_loss(gen_im, images, mu, logvar, bce_loss, loss_filter=loss_filter)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -153,6 +154,8 @@ def main():
                 vae.eval()
                 gen_im, mu, logvar = vae(Tensor(image).unsqueeze(0))
                 vae.train()
+            print(image.mean(axis=(1,2)))
+            print(gen_im[0].mean(axis=[1,2]))
             print(dataset.decode(image))
             print(label)
             print(dataset.decode(gen_im[0].detach()))
@@ -174,8 +177,12 @@ def save(autoenc: VAE, epoch: int, models_dir: str):
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
 
-def vae_loss(recon_x, x, mu, logvar, loss_fn):
+def vae_loss(recon_x, x, mu, logvar, loss_fn, loss_filter=None):
+    """focus_filter is a same dim array to be multiplied with the loss values"""
     l_loss = loss_fn(recon_x, x)
+    if loss_filter is not None:
+        l_loss *= loss_filter
+    l_loss = l_loss.sum() / l_loss.nelement()
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)

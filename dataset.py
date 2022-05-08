@@ -137,7 +137,7 @@ class AsciiArtDataset(Dataset):
             embeddings = one_hot_encoding.get_one_hot_for_str(content)
 
         # Makes embeddings image_res by image_res by channel
-        embeddings = embeddings.reshape(32,32,95)
+        embeddings = embeddings.reshape(self.res,self.res,self.channels)
         # Makes embeddings nchannels by image_res by image_res
         embeddings = np.moveaxis(embeddings, 2,0)
 
