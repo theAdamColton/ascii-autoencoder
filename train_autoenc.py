@@ -151,12 +151,11 @@ def main():
             image, label = dataset[random.randint(0,len(dataset)-1)]
             with torch.no_grad():
                 vae.eval()
-                gen_im = vae(Tensor(image).unsqueeze(0))
+                gen_im, mu, logvar = vae(Tensor(image).unsqueeze(0))
                 vae.train()
             print(dataset.decode(image))
             print(label)
             print(dataset.decode(gen_im[0].detach()))
-            bpdb.set_trace()
         print("Epoch [{}/{}] Loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size))
 
         if epoch % args.save_every == 0:

@@ -136,7 +136,10 @@ class AsciiArtDataset(Dataset):
         elif self.embedding_kind == "one-hot":
             embeddings = one_hot_encoding.get_one_hot_for_str(content)
 
-        embeddings = embeddings.reshape(self.channels, self.res, self.res)
+        # Makes embeddings image_res by image_res by channel
+        embeddings = embeddings.reshape(32,32,95)
+        # Makes embeddings nchannels by image_res by image_res
+        embeddings = np.moveaxis(embeddings, 2,0)
 
         label = self.__get_category_string_from_datapath(filename)
 
@@ -168,10 +171,16 @@ class AsciiArtDataset(Dataset):
 
         if not type(x) == np.ndarray:
             x = x.cpu()
+            x = np.array(x)
         if self.should_min_max_transform:
             x = self.character_embeddings.inverse_min_max_scaling(x)
 
-        x = x.reshape(self.res ** 2, self.channels)
+        assert len(x.shape) == 3
+
+        # Moves channels to last dim
+        x = np.moveaxis(x, 0, 2)
+        # Reshapes
+        x = x.reshape(self.res**2, self.channels)
 
         if self.embedding_kind == "decompose":
             s = self.character_embeddings.de_embed(x)
