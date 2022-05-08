@@ -183,3 +183,12 @@ def tensor_to_ascii_decomp(sample, dataset, img_size, channels):
     s = dataset.character_embeddings.de_embed(sample_rescaled)
     s_res = ascii_util.string_reshape(s, img_size)
     print(s_res)
+
+
+def debug_model(model, input_tensor):
+    output = input_tensor
+    for m in model.children():
+        output = m(output)
+        print(m, output.shape)
+    return output
+

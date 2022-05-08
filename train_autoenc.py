@@ -17,6 +17,7 @@ import bpdb
 
 
 from dataset import AsciiArtDataset
+import utils
 from autoencoder_models import VAE
 
 
@@ -37,8 +38,6 @@ def main():
         help="save every n epochs",
         default=100,
     )
-    parser.add_argument("--noise-std", dest="noise_std", type=float, default=0.0)
-    parser.add_argument("--noise-mean", dest="noise_mean", type=float, default=0.0)
     parser.add_argument(
         "--n-workers",
         dest="n_workers",
@@ -68,11 +67,13 @@ def main():
     )
     parser.add_argument("-l", "--load", dest="load", help="load models from directory")
 
-    parser.add_argument("-r", "--res", dest="res", type=int, default=36)
+    parser.add_argument("-r", "--res", dest="res", type=int, default=32)
     parser.add_argument("--one-hot", dest="one_hot", type=bool, default=False)
     parser.add_argument("--char-dim", dest="char_dim", type=int, default=8)
+    parser.add_argument("--nz", dest="nz", type=int, default=None)
     args = parser.parse_args()
 
+    # Argument correctness
     if args.one_hot:
         embedding_kind = "one-hot"
         channels=95
@@ -80,13 +81,16 @@ def main():
         embedding_kind = "decompose"
         channels=args.char_dim
 
+    if not args.nz:
+        z_dim = args.res * args.res
+    else:
+        z_dim = args.nz
+
     dataset = AsciiArtDataset(
         res=args.res,
-        added_noise_std=args.noise_std,
-        added_noise_mean=args.noise_mean,
-        should_add_noise=True,
         embedding_kind=embedding_kind,
         should_min_max_transform=not args.one_hot,
+        channels=channels
     )
     if args.keep_training_data_on_gpu:
         tdataset = dataset.to_tensordataset(torch.device("cuda"))
@@ -100,12 +104,13 @@ def main():
         pin_memory=not args.keep_training_data_on_gpu,
     )
 
-    vae = VAE(image_channels=channels, z_dim=128)
+    vae = VAE(n_channels=channels, z_dim=z_dim)
     vae.cuda()
     bce_loss = nn.BCELoss()
     bce_loss.cuda()
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
     Tensor = torch.cuda.FloatTensor
+    device = torch.device("cuda")
 
     if args.load:
         vae.load_state_dict(
@@ -116,6 +121,13 @@ def main():
             start_epoch = int(f.read())
     else:
         start_epoch = 0
+
+    in_tensor = torch.rand(7, channels, args.res, args.res)
+    in_tensor = in_tensor.to(device)
+    print("Encoder:")
+    out_tensor = utils.debug_model(vae.encoder, in_tensor)
+    print("Decoder:")
+    utils.debug_model(vae.decoder, out_tensor)
 
     for epoch in range(start_epoch, args.n_epochs):
         for i, data in enumerate(dataloader):
@@ -130,10 +142,11 @@ def main():
             optimizer.step()
 
         if epoch % args.print_every == 0:
-            image, label = dataset[random.randint(0,len(dataset))]
-            #bpdb.set_trace()
+            image, label = dataset[random.randint(0,len(dataset)-1)]
             with torch.no_grad():
+                vae.eval()
                 gen_im = vae(Tensor(image).unsqueeze(0))
+                vae.train()
             print(dataset.decode(image))
             print(label)
             print(dataset.decode(gen_im[0].detach()))
@@ -142,6 +155,9 @@ def main():
         if epoch % args.save_every == 0:
             print("Saving...")
             save(vae, epoch, "./models/{}/".format(args.run_name))
+
+    save(vae, epoch, "./models/{}/".format(args.run_name))
+
 
 
 

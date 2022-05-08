@@ -38,23 +38,16 @@ class AsciiArtDataset(Dataset):
         self,
         res: int = 36,
         datapath=DATADIR,
-        character_embeddings: str = path.dirname(__file__)
-        + "/character_embeddings/character_embeddings8d.npy",
         embedding_kind="decompose",
         should_min_max_transform=False,
-        should_add_noise=False,
-        # These noise parameters don't change the ascii art too much
-        # For 8D character_embeddings
-        added_noise_std=0.022,
-        added_noise_mean=-0.02,
+        channels=8,
     ):
         """
         res: Desired resolution of the square ascii art
         datapath: Optional specification of the directory containing *.txt files, organized by directory in categories
         embedding_kind: One of 'one-hot', 'decompose'
             'one-hot' indicates that each character in the image will be represented by a
-        character_embeddings: Optional path of the character embeddings used to decompose the characters into lower dimensions,
-            only applies if embedding_type is set to 'decompose'
+        channels: number of channels to use if embedding_kind is decompose.
         should_min_max_transform: If true, will scale all the data to 0 - 1, by examining the smallest and largest values
         should_add_noise: If true, will add gaussian noise to each image
         added_noise_std: The standard deviation of the noise added to each character vector
@@ -62,13 +55,24 @@ class AsciiArtDataset(Dataset):
         """
         self.res = res
         self.should_min_max_transform = should_min_max_transform
-        self.should_add_noise = should_add_noise
-        self.added_noise_std = added_noise_std
         self.embedding_kind = embedding_kind
-
         assert self.embedding_kind in {"decompose", "one-hot"}
         if self.should_min_max_transform:
             assert self.embedding_kind == "decompose"
+
+        if self.embedding_kind == "decompose":
+            character_embeddings = path.join(
+                path.dirname(__file__),
+                "./character_embeddings/character_embeddings{}d.npy".format(channels),
+            )
+            self.character_embeddings = CharacterEmbeddings(character_embeddings)
+            self.channels = self.character_embeddings.char_dim
+        elif self.embedding_kind == "one-hot":
+            self.channels = 95
+
+        if should_min_max_transform:
+            self.min_char_emb = self.character_embeddings.min
+            self.max_char_emb = self.character_embeddings.max
 
         assert path.isdir(datapath)
         # Filters out files that are too large
@@ -96,15 +100,6 @@ class AsciiArtDataset(Dataset):
                                 asciifiles.remove(file)
 
         self.asciifiles = list(asciifiles)
-        if self.embedding_kind == "decompose":
-            self.character_embeddings = CharacterEmbeddings(character_embeddings)
-            self.channels = self.character_embeddings.char_dim
-        elif self.embedding_kind == "one-hot":
-            self.channels = 95
-
-        if should_min_max_transform:
-            self.min_char_emb = self.character_embeddings.min
-            self.max_char_emb = self.character_embeddings.max
 
     def __len__(self):
         return len(self.asciifiles)
@@ -144,9 +139,6 @@ class AsciiArtDataset(Dataset):
         embeddings = embeddings.reshape(self.channels, self.res, self.res)
 
         label = self.__get_category_string_from_datapath(filename)
-
-        if self.should_add_noise:
-            embeddings += np.random.randn(*embeddings.shape) * self.added_noise_std
 
         return embeddings, label
 
