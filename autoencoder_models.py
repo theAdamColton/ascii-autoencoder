@@ -24,19 +24,19 @@ class VAE(nn.Module):
         self.encoder = nn.Sequential(
             # Input batchsize x n_channels x 32 x 32
             nn.Conv2d(n_channels, n_channels * 2, kernel_size=2, stride=2, padding=0),
-            #nn.BatchNorm2d(n_channels * 2),
+            nn.BatchNorm2d(n_channels * 2),
             nn.ReLU(),
             # Input batchsize x n_channels * 2 x 16 x 16
             nn.Conv2d(n_channels * 2, n_channels * 3, kernel_size=2, stride=2, padding=0),
-            #nn.BatchNorm2d(n_channels * 3),
+            nn.BatchNorm2d(n_channels * 3),
             nn.ReLU(),
             # Input batchsize x n_channels * 3 x 8 x 8
             nn.Conv2d(n_channels * 3, n_channels * 4, kernel_size=2, stride=2, padding=0),
-            #nn.BatchNorm2d(n_channels * 4),
+            nn.BatchNorm2d(n_channels * 4),
             nn.ReLU(),
             # Input batchsize x n_channels * 4 x 4 x 4
             nn.Conv2d(n_channels * 4, h_dim, kernel_size=2, stride=4, padding=0),
-            #nn.BatchNorm2d(h_dim),
+            nn.BatchNorm2d(h_dim),
             nn.ReLU(),
             # Input batchsize x h_dim x 1 x 1
             Flatten()
@@ -49,13 +49,13 @@ class VAE(nn.Module):
         self.decoder = nn.Sequential(
             UnFlatten(h_dim),
             nn.ConvTranspose2d(h_dim, n_channels * 4, kernel_size=4, stride=4, padding=0),
-            #nn.BatchNorm2d(n_channels * 4),
+            nn.BatchNorm2d(n_channels * 4),
             nn.ReLU(),
             nn.ConvTranspose2d(n_channels * 4, n_channels * 3, kernel_size=2, stride=2, padding=0),
-            #nn.BatchNorm2d(n_channels * 3),
+            nn.BatchNorm2d(n_channels * 3),
             nn.ReLU(),
             nn.ConvTranspose2d(n_channels * 3, n_channels * 2, kernel_size=2, stride=2, padding=0),
-            #nn.BatchNorm2d(n_channels * 2),
+            nn.BatchNorm2d(n_channels * 2),
             nn.ReLU(),
             nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0),
             # Applies softmax to every channel

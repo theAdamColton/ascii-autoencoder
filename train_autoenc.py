@@ -108,6 +108,13 @@ def main():
     vae.cuda()
     bce_loss = nn.BCELoss(reduction='none')
     bce_loss.cuda()
+    mse_loss = nn.MSELoss(reduction='none')
+    mse_loss.cuda()
+
+    if args.one_hot:
+        loss_fn = bce_loss
+    else:
+        loss_fn = mse_loss
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
     Tensor = torch.cuda.FloatTensor
     device = torch.device("cuda")
@@ -143,7 +150,7 @@ def main():
 
             labels = data[1]
             gen_im, mu, logvar = vae(images)
-            loss = vae_loss(gen_im, images, mu, logvar, bce_loss, loss_filter=loss_filter)
+            loss = vae_loss(gen_im, images, mu, logvar, mse_loss, loss_filter=loss_filter)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
