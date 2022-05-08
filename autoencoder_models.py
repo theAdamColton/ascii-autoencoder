@@ -65,7 +65,6 @@ class VAE(nn.Module):
             # Applies softmax to every channel
             # This only makes sense if using one hot encoding
             nn.Softmax(dim=1),
-            ArgMax(),
         )
 
     def reparameterize(self, mu, logvar):
