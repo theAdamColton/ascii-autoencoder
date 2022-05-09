@@ -108,11 +108,14 @@ def main():
     vae.cuda()
     bce_loss = nn.BCELoss(reduction='none')
     bce_loss.cuda()
+    ce_loss = nn.CrossEntropyLoss(reduction='none')
+    ce_loss.cuda()
     mse_loss = nn.MSELoss(reduction='none')
     mse_loss.cuda()
 
     if args.one_hot:
-        loss_fn = bce_loss
+        #loss_fn = bce_loss
+        loss_fn = ce_loss
     else:
         loss_fn = mse_loss
     optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
@@ -184,9 +187,11 @@ def save(autoenc: VAE, epoch: int, models_dir: str):
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
 
-def vae_loss(recon_x, x, mu, logvar, loss_fn, loss_filter=None):
+def vae_loss(recon_x, x, mu, logvar, loss_fn, loss_filter=None, weights=None):
     """focus_filter is a same dim array to be multiplied with the loss values"""
-    l_loss = loss_fn(recon_x, x)
+    x_idx = x.argmax(1)
+    bpdb.set_trace()
+    l_loss = loss_fn(recon_x, x_idx)
     if loss_filter is not None:
         l_loss *= loss_filter
     l_loss = l_loss.sum() / l_loss.nelement()
