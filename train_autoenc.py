@@ -90,7 +90,6 @@ def main():
         embedding_kind=embedding_kind,
         should_min_max_transform=not args.one_hot,
         channels=channels,
-        max_samples=10,
     )
     if args.keep_training_data_on_gpu:
         tdataset = dataset.to_tensordataset(torch.device("cuda"))
@@ -104,32 +103,23 @@ def main():
         pin_memory=not args.keep_training_data_on_gpu,
     )
 
-    # VAE
-    #vae = VAE(n_channels=channels, z_dim=z_dim, h_dim=256)
     # Vanilla Autoencoder
     autoenc = VanillaAutoenc(n_channels=channels, z_dim=z_dim)
     autoenc.cuda()
-    #vae = VAE_lin(n_channels=channels, z_dim=z_dim)
-    #vae.cuda()
-    bce_loss = nn.BCELoss(reduction='none')
+    bce_loss = nn.BCELoss()
     bce_loss.cuda()
 
     # weights for ce loss
     char_weights = torch.zeros(95)
     # Less emphasis on space characters
-    reduction_factor = 5
+    reduction_factor = 0.95
     char_weights[0] = 1 / 95 / reduction_factor
     char_weights[1:] = (1 - char_weights[0]) / 94
     ce_loss = nn.CrossEntropyLoss(weight=char_weights)
     ce_loss.cuda()
 
-    mse_loss = nn.MSELoss(reduction='none')
+    mse_loss = nn.MSELoss()
     mse_loss.cuda()
-    if args.one_hot:
-        #loss_fn = bce_loss
-        loss_fn = ce_loss
-    else:
-        loss_fn = mse_loss
 
     optimizer = torch.optim.Adam(autoenc.parameters(), lr=args.learning_rate)
     Tensor = torch.cuda.FloatTensor
@@ -166,13 +156,13 @@ def main():
             images = Variable(images.type(Tensor))
             labels = data[1]
 
-            # VAE
-            #gen_im, mu, logvar = vae(images)
-            #loss = vae_loss(gen_im, images, mu, logvar, loss_fn)
-
             # Vanilla Autoencoder
             gen_im = autoenc(images)
-            loss = ce_loss(gen_im, images.argmax(1))
+            bpdb.set_trace()
+            if args.one_hot:
+                loss = ce_loss(gen_im, images.argmax(1))
+            else:
+                loss = mse_loss(gen_im, images)
 
             loss.backward()
             optimizer.step()
@@ -183,21 +173,15 @@ def main():
                 autoenc.eval()
                 gen_im = autoenc(Tensor(image).unsqueeze(0))
                 autoenc.train()
-            print(image.mean(axis=(1,2)))
-            print(gen_im[0].mean(axis=[1,2]))
             print(dataset.decode(image))
             print(label)
             print(dataset.decode(gen_im[0].detach()))
         print("Epoch [{}/{}] Loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size))
 
         if epoch % args.save_every == 0:
-            print("Saving...")
             save(autoenc, epoch, "./models/{}/".format(args.run_name))
 
     save(autoenc, args.n_epochs, "./models/{}/".format(args.run_name))
-
-
-
 
 
 def save(autoenc: VAE, epoch: int, models_dir: str):
@@ -205,18 +189,7 @@ def save(autoenc: VAE, epoch: int, models_dir: str):
     torch.save(autoenc.state_dict(), "{}/autoencoder.pth.tar".format(models_dir, epoch))
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
-
-def vae_loss(recon_x, x, mu, logvar, loss_fn):
-    """focus_filter is a same dim array to be multiplied with the loss values"""
-    x_idx = x.argmax(1)
-    l_loss = loss_fn(recon_x, x_idx)
-    # see Appendix B from VAE paper:
-    # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-    # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-    kld = -0.5 * torch.sum(1 + logvar - mu**2 -  logvar.exp())
-    return l_loss + kld
-
-
+    print("Saved...")
 
 if __name__ in {"__main__", "__console__"}:
     main()

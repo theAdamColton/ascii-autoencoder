@@ -159,7 +159,7 @@ class VAE_lin(VAE):
         )
 
 class VanillaAutoenc(nn.Module):
-    def __init__(self, n_channels=3, z_dim=512):
+    def __init__(self, n_channels=3, z_dim=512, categorical=True):
         super(VanillaAutoenc, self).__init__()
         self.encoder = nn.Sequential(
             # Input batchsize x n_channels x 32 x 32
@@ -194,7 +194,7 @@ class VanillaAutoenc(nn.Module):
             nn.BatchNorm1d(z_dim),
         )
 
-        self.decoder = nn.Sequential(
+        decoder_layers = [
             nn.LazyLinear(z_dim),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
@@ -220,9 +220,17 @@ class VanillaAutoenc(nn.Module):
             nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
+        ]
+
+        if categorical:
             # Applies softmax to every channel
             # This only makes sense if using one hot encoding
-            nn.Softmax(dim=1),
+            decoder_layers.append(nn.Softmax(dim=1))
+        else:
+            decoder_layers.append(nn.Sigmoid)
+
+        self.decoder = nn.Sequential(
+            *decoder_layers
         )
 
     def forward(self, x):
