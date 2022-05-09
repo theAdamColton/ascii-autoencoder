@@ -154,7 +154,7 @@ class AsciiArtDataset(Dataset):
     def get_latent_embedding(self, filename):
         """filename is the name of an ascii text file"""
         emb_name = filename.removesuffix(".txt") + ".pt"
-        out = torch.load(emb_name)
+        out = torch.load(emb_name, map_location='cpu')
         return out
 
     def to_tensordataset(self, device) -> TensorDataset:

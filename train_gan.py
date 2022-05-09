@@ -217,7 +217,6 @@ def main():
             #  Train Discriminator
             # ---------------------
 
-            bpdb.set_trace()
             if epoch % args.train_dis_every == 0:
                 optimizer_D.zero_grad()
                 # Measure discriminator's ability to classify real from generated samples
@@ -245,10 +244,11 @@ def main():
             with torch.no_grad():
                 generator.eval()
                 gen_im = generator(noise)
-                real_im = dataset[random.randint(0, len(dataset))][0]
-                real_im = Tensor(real_im)
+                real_im = dataset[random.randint(0, len(dataset))][1]
+                real_im = real_im.unsqueeze(0)
+                real_im = real_im.to(device)
                 gen_decoded = autoenc.decoder(gen_im)
-                real_decoded = autoenc.decoder(real_im.unsqueeze(0))
+                real_decoded = autoenc.decoder(real_im)
                 gen_str = dataset.decode(gen_decoded[0])
                 real_str =dataset.decode(real_decoded[0])
                 side_by_side = ascii_util.horizontal_concat(gen_str, real_str)
