@@ -4,7 +4,6 @@ from character_embeddings import one_hot_encoding
 
 import numpy as np
 import torch
-import torchvision
 import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import TensorDataset

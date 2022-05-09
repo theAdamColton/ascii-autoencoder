@@ -136,8 +136,8 @@ def main():
     autoenc.eval()
     print("Loaded autoencoder")
 
-    generator = DLinGan_G(nz, autoenc_latent_dim)
-    discriminator = DLinGan_D(autoenc_latent_dim, downscale_factor=2)
+    generator = DLinGan_G(nz, autoenc_latent_dim, initial_layers=3)
+    discriminator = DLinGan_D(autoenc_latent_dim, downscale_factor=2, initial_layers=3)
     generator.apply(utils.weights_init)
     discriminator.apply(utils.weights_init)
 

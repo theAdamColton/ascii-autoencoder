@@ -61,19 +61,19 @@ class VanillaAutoenc(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(z_dim),
             Flatten(),
-            nn.LazyLinear(z_dim),
+            nn.Linear(z_dim*4, z_dim),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
-            nn.LazyLinear(z_dim),
+            nn.Linear(z_dim, z_dim),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
         )
 
         decoder_layers = [
-            nn.LazyLinear(z_dim),
+            nn.Linear(z_dim, z_dim),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
-            nn.LazyLinear(z_dim * 4),
+            nn.Linear(z_dim, z_dim * 4),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim * 4),
             GenericUnflatten((z_dim, 2, 2)),
