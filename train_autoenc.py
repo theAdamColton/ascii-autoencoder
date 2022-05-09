@@ -89,7 +89,8 @@ def main():
         res=args.res,
         embedding_kind=embedding_kind,
         should_min_max_transform=not args.one_hot,
-        channels=channels
+        channels=channels,
+        max_samples=10,
     )
     if args.keep_training_data_on_gpu:
         tdataset = dataset.to_tensordataset(torch.device("cuda"))
@@ -108,8 +109,17 @@ def main():
     vae.cuda()
     bce_loss = nn.BCELoss(reduction='none')
     bce_loss.cuda()
-    ce_loss = nn.CrossEntropyLoss(reduction='none')
+
+    # weights for ce loss
+    char_weights = torch.zeros(95)
+    # Less emphasis on space characters
+    reduction_factor = 5
+    char_weights[0] = 1 / 95 / reduction_factor
+    char_weights[1:] = (1 - char_weights[0]) / 94
+
+    ce_loss = nn.CrossEntropyLoss(weight=char_weights)
     ce_loss.cuda()
+
     mse_loss = nn.MSELoss(reduction='none')
     mse_loss.cuda()
 
@@ -148,13 +158,13 @@ def main():
 
     for epoch in range(start_epoch, args.n_epochs):
         for i, data in enumerate(dataloader):
+            optimizer.zero_grad()
             images = data[0]
             images = Variable(images.type(Tensor))
 
             labels = data[1]
             gen_im, mu, logvar = vae(images)
-            loss = vae_loss(gen_im, images, mu, logvar, loss_fn, loss_filter=loss_filter)
-            optimizer.zero_grad()
+            loss = vae_loss(gen_im, images, mu, logvar, loss_fn)
             loss.backward()
             optimizer.step()
 
@@ -187,14 +197,10 @@ def save(autoenc: VAE, epoch: int, models_dir: str):
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
 
-def vae_loss(recon_x, x, mu, logvar, loss_fn, loss_filter=None, weights=None):
+def vae_loss(recon_x, x, mu, logvar, loss_fn):
     """focus_filter is a same dim array to be multiplied with the loss values"""
     x_idx = x.argmax(1)
-    bpdb.set_trace()
     l_loss = loss_fn(recon_x, x_idx)
-    if loss_filter is not None:
-        l_loss *= loss_filter
-    l_loss = l_loss.sum() / l_loss.nelement()
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)

@@ -38,23 +38,35 @@ class VAE(nn.Module):
         super(VAE, self).__init__()
         self.encoder = nn.Sequential(
             # Input batchsize x n_channels x 32 x 32
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
             nn.Conv2d(n_channels, n_channels * 2, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels * 2),
-            nn.ReLU(),
             # Input batchsize x n_channels * 2 x 16 x 16
-            nn.Conv2d(n_channels * 2, n_channels * 3, kernel_size=2, stride=2, padding=0),
-            nn.BatchNorm2d(n_channels * 3),
-            nn.ReLU(),
-            # Input batchsize x n_channels * 3 x 8 x 8
-            nn.Conv2d(n_channels * 3, n_channels * 4, kernel_size=2, stride=2, padding=0),
+            nn.Conv2d(n_channels * 2, n_channels * 4, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels * 4),
-            nn.ReLU(),
+            # Input batchsize x n_channels * 3 x 8 x 8
+            nn.Conv2d(n_channels * 4, n_channels * 8, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 8),
             # Input batchsize x n_channels * 4 x 4 x 4
-            nn.Conv2d(n_channels * 4, h_dim, kernel_size=2, stride=4, padding=0),
+            nn.Conv2d(n_channels * 8, h_dim, kernel_size=2, stride=4, padding=0),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(h_dim),
-            nn.ReLU(),
             # Input batchsize x h_dim x 1 x 1
-            Flatten()
+            Flatten(),
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
         )
 
         self.fc1 = nn.Linear(h_dim, z_dim)
@@ -62,17 +74,31 @@ class VAE(nn.Module):
         self.fc3 = nn.Linear(z_dim, h_dim)
 
         self.decoder = nn.Sequential(
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
             UnFlatten(h_dim),
-            nn.ConvTranspose2d(h_dim, n_channels * 4, kernel_size=4, stride=4, padding=0),
+            nn.ConvTranspose2d(h_dim, n_channels * 8, kernel_size=4, stride=4, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 8),
+            nn.ConvTranspose2d(n_channels * 8, n_channels * 4, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels * 4),
-            nn.ReLU(),
-            nn.ConvTranspose2d(n_channels * 4, n_channels * 3, kernel_size=2, stride=2, padding=0),
-            nn.BatchNorm2d(n_channels * 3),
-            nn.ReLU(),
-            nn.ConvTranspose2d(n_channels * 3, n_channels * 2, kernel_size=2, stride=2, padding=0),
+            nn.ConvTranspose2d(n_channels * 4, n_channels * 2, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels * 2),
-            nn.ReLU(),
             nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
             # Applies softmax to every channel
             # This only makes sense if using one hot encoding
             nn.Softmax(dim=1),
@@ -132,3 +158,73 @@ class VAE_lin(VAE):
             nn.Softmax(dim=1),
         )
 
+class VanillaAutoenc(nn.Module):
+    def __init__(self, n_channels=3, h_dim=512, z_dim=32):
+        super(VanillaAutoenc, self).__init__()
+        self.encoder = nn.Sequential(
+            # Input batchsize x n_channels x 32 x 32
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels * 2, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 2),
+            # Input batchsize x n_channels * 2 x 16 x 16
+            nn.Conv2d(n_channels * 2, n_channels * 4, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 4),
+            # Input batchsize x n_channels * 3 x 8 x 8
+            nn.Conv2d(n_channels * 4, n_channels * 8, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 8),
+            # Input batchsize x n_channels * 4 x 4 x 4
+            nn.Conv2d(n_channels * 8, h_dim, kernel_size=2, stride=4, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(h_dim),
+            # Input batchsize x h_dim x 1 x 1
+            Flatten(),
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
+            nn.LazyLinear(h_dim),
+            nn.LeakyReLU(),
+            nn.BatchNorm1d(h_dim),
+            UnFlatten(h_dim),
+            nn.ConvTranspose2d(h_dim, n_channels * 8, kernel_size=4, stride=4, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 8),
+            nn.ConvTranspose2d(n_channels * 8, n_channels * 4, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 4),
+            nn.ConvTranspose2d(n_channels * 4, n_channels * 2, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels * 2),
+            nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(n_channels),
+            # Applies softmax to every channel
+            # This only makes sense if using one hot encoding
+            nn.Softmax(dim=1),
+        )
+
+    def forward(self, x):
+        h = self.encoder(x)
+        return self.decoder(h)

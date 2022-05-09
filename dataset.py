@@ -39,6 +39,7 @@ class AsciiArtDataset(Dataset):
         embedding_kind="decompose",
         should_min_max_transform=False,
         channels=8,
+        max_samples=None,
     ):
         """
         res: Desired resolution of the square ascii art
@@ -98,6 +99,8 @@ class AsciiArtDataset(Dataset):
                                 asciifiles.remove(file)
 
         self.asciifiles = list(asciifiles)
+        if max_samples:
+            self.asciifiles = self.asciifiles[:max_samples+1]
 
     def __len__(self):
         return len(self.asciifiles)
