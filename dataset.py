@@ -12,8 +12,6 @@ from os import path
 from glob import glob
 import re
 
-import bpdb
-
 DATADIR = path.abspath(path.join(path.dirname(__name__), "data_aggregation/data/"))
 import utils
 

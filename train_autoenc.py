@@ -13,12 +13,11 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torchsummary import summary
 import torch.nn as nn
-import bpdb
 
 
 from dataset import AsciiArtDataset
 import utils
-from autoencoder_models import VAE
+from autoencoder_models import VAE, VAE_lin
 
 
 def main():
@@ -104,7 +103,8 @@ def main():
         pin_memory=not args.keep_training_data_on_gpu,
     )
 
-    vae = VAE(n_channels=channels, z_dim=z_dim, h_dim=512)
+    vae = VAE(n_channels=channels, z_dim=z_dim, h_dim=256)
+    #vae = VAE_lin(n_channels=channels, z_dim=z_dim)
     vae.cuda()
     bce_loss = nn.BCELoss(reduction='none')
     bce_loss.cuda()

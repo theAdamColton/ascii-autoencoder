@@ -7,15 +7,26 @@ import bpdb
 
 class Flatten(nn.Module):
     def forward(self, input):
-        return input.view(input.size(0), -1)
+        return input.flatten(start_dim=1, end_dim=-1)
 
 
 class UnFlatten(nn.Module):
     def __init__(self, size):
         super(UnFlatten, self).__init__()
         self.size = size
+
     def forward(self, input):
         return input.view(input.size(0), self.size, 1, 1)
+
+
+class GenericUnflatten(nn.Module):
+    def __init__(self, shape):
+        super(GenericUnflatten, self).__init__()
+        self.shape = shape
+
+    def forward(self, input):
+        return input.view(input.shape[0], *self.shape)
+
 
 class ArgMax(nn.Module):
     def forward(self, input):
@@ -87,4 +98,37 @@ class VAE(nn.Module):
         z, mu, logvar = self.bottleneck(h)
         z = self.fc3(z)
         return self.decoder(z), mu, logvar
+
+
+class VAE_lin(VAE):
+    def __init__(self, n_channels=8, z_dim=32):
+        super(VAE_lin, self).__init__()
+        self.encoder = nn.Sequential(
+            # Input: batchsize x n_channels x 32 x 32
+            Flatten(),
+            nn.Linear(n_channels * 32 * 32, n_channels * 32 * 32 // 64),
+            nn.BatchNorm1d(n_channels * 32 * 32 // 64),
+            nn.LeakyReLU(),
+            nn.Linear(n_channels * 32 * 32 // 64, n_channels * 32 * 32 // 128),
+            nn.BatchNorm1d(n_channels * 32 * 32 // 128),
+            nn.LeakyReLU(),
+            nn.Linear(n_channels * 32 * 32 // 128, z_dim),
+            nn.LeakyReLU(),
+        )
+
+        self.fc1 = nn.Linear(z_dim, z_dim)
+        self.fc2 = nn.Linear(z_dim, z_dim)
+        self.fc3 = nn.Linear(z_dim, z_dim)
+
+        self.decoder = nn.Sequential(
+            nn.Linear(z_dim, n_channels * 32 * 32 // 128),
+            nn.BatchNorm1d(n_channels * 32 * 32 // 128),
+            nn.LeakyReLU(),
+            nn.Linear(n_channels * 32 * 32 // 128, n_channels * 32 * 32 // 64),
+            nn.BatchNorm1d(n_channels * 32 * 32 // 64),
+            nn.LeakyReLU(),
+            nn.Linear(n_channels * 32 * 32 // 64, n_channels * 32 * 32),
+            GenericUnflatten((n_channels, 32, 32)),
+            nn.Softmax(dim=1),
+        )
 
