@@ -14,7 +14,7 @@ from torchsummary import summary
 
 import bpdb
 
-from dcganmodels import DCGAN_D, DCGAN_G
+from dcganmodels import DCGAN_D, DCGAN_G, DLinGan_D, DLinGan_G
 from character_embeddings.embeddings import CharacterEmbeddings
 from dataset import AsciiArtDataset
 import utils
@@ -36,6 +36,7 @@ def main():
     parser.add_argument(
         "-b", "--batch_size", dest="batch_size", default=64, type=int, help="Batch size"
     )
+    parser.add_argument("--lr", dest="lr", default=7E-5)
     parser.add_argument(
         "--keep-training-data-on-gpu",
         dest="keep_training_data_on_gpu",
@@ -65,9 +66,7 @@ def main():
         default="test_run",
     )
     parser.add_argument(
-        "--data-dir",
-        dest="data_dir",
-        default=None,
+        "--autoenc-path", dest="autoenc_path"
     )
     parser.add_argument("-l", "--load", dest="load", help="load models from directory")
     parser.add_argument(
@@ -77,68 +76,33 @@ def main():
         "--train-dis-every", dest="train_dis_every", type=int, default=1
     )
     parser.add_argument("--noise-std", dest="noise_std", type=float, default=0.00)
-    parser.add_argument("--noise-mean", dest="noise_mean", type=float, default=0.0)
 
     """ Settings that require recreating the model """
-    parser.add_argument("-c", "--channels", dest="channels", type=int)
-    parser.add_argument("-r", "--res", dest="res", type=int, default=36)
+    parser.add_argument("-r", "--res", dest="res", type=int)
+    parser.add_argument("--autoenc-latent-dim", dest="autoenc_latent_dim", type=int)
     parser.add_argument("--nz", dest="nz", type=int)
-    parser.add_argument(
-        "--gen-extra-layers", dest="gen_extra_layers", type=int, default=0
-    )
-    parser.add_argument(
-        "--dis-extra-layers", dest="dis_extra_layers", type=int, default=0
-    )
-    parser.add_argument(
-        "--ngf", dest="ngf", type=int, help="n latent generator features", default=128
-    )
-    parser.add_argument(
-        "--ndf",
-        dest="ndf",
-        type=int,
-        help="n latent discriminator features",
-        default=128,
-    )
-    parser.add_argument(
-        "--embedding-kind",
-        dest="embedding_kind",
-        help="Train a model with characters that are one hot encoded, or decomposed via PCA",
-        choices=["one-hot", "decompose"],
-    )
     args = parser.parse_args()
 
     # Arguments validity checking
     assert args.train_gen_every == 1 or args.train_dis_every == 1
-    assert args.embedding_kind == "one-hot" and not args.channels
-    if args.embedding_kind == "decompose":
-        assert args.channels
 
     # Training details
-    run_name = args.run_name
     n_epochs = args.n_epochs
     batch_size = args.batch_size
     nz = args.nz
-    lr = 1e-4
+    lr = args.lr
     b1 = 0.5
     b2 = 0.99
 
     img_size = args.res
-    assert img_size % 16 == 0
-    if args.embedding_kind == "one-hot":
-        channels = 95
-    elif args.embedding_kind == "decompose":
-        channels = args.channels
+    autoenc_latent_dim = args.autoenc_latent_dim
 
     cuda = True if torch.cuda.is_available() else False
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     _kwargs = dict(
         res=img_size,
-        character_embeddings=os.path.join(
-            os.path.dirname(__file__),
-            "./character_embeddings/character_embeddings{}d.npy".format(channels),
-        ),
-        embedding_kind=args.embedding_kind,
+        embedding_kind='one-hot',
     )
     dataset = AsciiArtDataset(
         **{k: v for k, v in _kwargs.items() if v is not None},
@@ -157,43 +121,15 @@ def main():
         pin_memory=not args.keep_training_data_on_gpu,
     )
 
-    sep_und = "_"
-    run_name_comps = [
-        "%iepoch" % n_epochs,
-        "z%s" % str(nz),
-        "res%i" % img_size,
-        "bs%i" % batch_size,
-        "channels%i" % channels,
-        run_name,
-    ]
-    run_name = sep_und.join(run_name_comps)
-    run_dir = os.path.join(os.path.dirname(__file__), "models/", run_name)
-    imgs_dir = os.path.join(run_dir, "images")
-    models_dir = os.path.join(run_dir, "models")
-    os.makedirs(run_dir, exist_ok=True)
-    os.makedirs(imgs_dir, exist_ok=True)
-    os.makedirs(models_dir, exist_ok=True)
-    print("\nResults to be saved in directory %s\n" % (run_dir))
-
-    x_shape = (channels, img_size, img_size)
+    run_dir = os.path.join(os.path.dirname(__file__), "models/", args.run_name)
 
     # Loss function
     bce_loss = torch.nn.BCELoss()
     xe_loss = torch.nn.CrossEntropyLoss()
     mse_loss = torch.nn.MSELoss()
 
-    # Initialize generator and discriminator
-    generator = DCGAN_G(
-        img_size,
-        nz,
-        channels,
-        args.ngf,
-        1,
-        n_extra_layers=args.gen_extra_layers,
-    )
-    discriminator = DCGAN_D(
-        img_size, nz, channels, args.ndf, 1, n_extra_layers=args.dis_extra_layers
-    )
+    generator = DLinGan_G(nz, autoenc_latent_dim, )
+    discriminator = DLinGan_D(autoenc_latent_dim, )
     generator.apply(utils.weights_init)
     discriminator.apply(utils.weights_init)
 
@@ -203,7 +139,7 @@ def main():
         models = [generator, discriminator]
         for model in models:
             model.load_state_dict(
-                torch.load(os.path.join(args.load, "models/", model.name + ".pth.tar"))
+                torch.load(os.path.join(args.load, model.name + ".pth.tar"))
             )
         print("Loaded models")
         with open(os.path.join(args.load, "epoch"), "r") as f:
@@ -221,18 +157,14 @@ def main():
     optimizer_GE = torch.optim.Adam(generator.parameters(), lr=lr, betas=(b1, b2))
     optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
 
-    __noise = torch.randn(nz, 1, 1, device=device)
+    __noise = torch.randn(nz, device=device)
     print("-----Generator-----")
-    summary(generator, (__noise.shape))
+    summary(generator, (nz,))
     print("-------------------")
     print("----Discriminator--")
     summary(
         discriminator,
-        (
-            x_shape[0],
-            x_shape[1],
-            x_shape[2],
-        ),
+        (autoenc_latent_dim,)
     )
     print("-------------------")
 
@@ -246,17 +178,17 @@ def main():
 
             # Adversarial ground truths
             valid = Variable(
-                Tensor(imgs.shape[0], 1, 1, 1).fill_(1.0), requires_grad=False
+                Tensor(imgs.shape[0],).fill_(1.0), requires_grad=False
             )
             fake = Variable(
-                Tensor(imgs.shape[0], 1, 1, 1).fill_(0.0), requires_grad=False
+                Tensor(imgs.shape[0],).fill_(0.0), requires_grad=False
             )
 
             # Configure input
             real_imgs = Variable(imgs.type(Tensor))
 
             # Sample random latent space
-            noise = torch.randn(imgs.shape[0], nz, 1, 1, device=device)
+            noise = torch.randn(imgs.shape[0], nz, device=device)
 
             # Generate a batch of images
             gen_imgs = generator(noise)
@@ -296,26 +228,29 @@ def main():
             )
 
         if epoch % args.save_every == 0:
-            save(discriminator, generator, models_dir, epoch)
+            save(discriminator, generator, run_dir, epoch)
 
         if epoch % args.print_every == 0:
             # Sample random latent space
-            noise = torch.randn(1, nz, 1, 1, device=device)
+            noise = torch.randn(1, nz, device=device)
             with torch.no_grad():
-                gen_im = generator(noise)
+                generator.eval()
+                gen_im = generator(noise)[0]
                 real_im = dataset[random.randint(0, len(dataset))][0]
-                print(dataset.decode(real_im))
-                print(dataset.decode(gen_im[0]))
+                #print(dataset.decode(real_im))
+                #print(dataset.decode(gen_im[0]))
+            generator.train()
 
     # Save current state of trained models
-    save(discriminator, generator, models_dir, n_epochs)
+    save(discriminator, generator, run_dir, n_epochs)
 
 
 def save(disc, gen, models_dir, epoch):
     print("Saving... {}".format(models_dir))
+    os.makedirs(models_dir, exist_ok=True)
     model_list = [disc, gen]
     utils.save_model(models=model_list, out_dir=models_dir)
-    with open(os.path.join(models_dir, "../epoch"), "w") as f:
+    with open(os.path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
 
 
