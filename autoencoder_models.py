@@ -159,7 +159,7 @@ class VAE_lin(VAE):
         )
 
 class VanillaAutoenc(nn.Module):
-    def __init__(self, n_channels=3, h_dim=512, z_dim=32):
+    def __init__(self, n_channels=3, z_dim=512):
         super(VanillaAutoenc, self).__init__()
         self.encoder = nn.Sequential(
             # Input batchsize x n_channels x 32 x 32
@@ -181,28 +181,28 @@ class VanillaAutoenc(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels * 8),
             # Input batchsize x n_channels * 4 x 4 x 4
-            nn.Conv2d(n_channels * 8, h_dim, kernel_size=2, stride=4, padding=0),
+            nn.Conv2d(n_channels * 8, z_dim, kernel_size=2, stride=4, padding=0),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(h_dim),
+            nn.BatchNorm2d(z_dim),
             # Input batchsize x h_dim x 1 x 1
             Flatten(),
-            nn.LazyLinear(h_dim),
+            nn.LazyLinear(z_dim),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(h_dim),
-            nn.LazyLinear(h_dim),
+            nn.BatchNorm1d(z_dim),
+            nn.LazyLinear(z_dim),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(h_dim),
+            nn.BatchNorm1d(z_dim),
         )
 
         self.decoder = nn.Sequential(
-            nn.LazyLinear(h_dim),
+            nn.LazyLinear(z_dim),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(h_dim),
-            nn.LazyLinear(h_dim),
+            nn.BatchNorm1d(z_dim),
+            nn.LazyLinear(z_dim),
             nn.LeakyReLU(),
-            nn.BatchNorm1d(h_dim),
-            UnFlatten(h_dim),
-            nn.ConvTranspose2d(h_dim, n_channels * 8, kernel_size=4, stride=4, padding=0),
+            nn.BatchNorm1d(z_dim),
+            UnFlatten(z_dim),
+            nn.ConvTranspose2d(z_dim, n_channels * 8, kernel_size=4, stride=4, padding=0),
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels * 8),
             nn.ConvTranspose2d(n_channels * 8, n_channels * 4, kernel_size=2, stride=2, padding=0),

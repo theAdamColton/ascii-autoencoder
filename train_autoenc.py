@@ -17,7 +17,7 @@ import torch.nn as nn
 
 from dataset import AsciiArtDataset
 import utils
-from autoencoder_models import VAE, VAE_lin
+from autoencoder_models import VAE, VAE_lin, VanillaAutoenc
 
 
 def main():
@@ -104,9 +104,13 @@ def main():
         pin_memory=not args.keep_training_data_on_gpu,
     )
 
-    vae = VAE(n_channels=channels, z_dim=z_dim, h_dim=256)
+    # VAE
+    #vae = VAE(n_channels=channels, z_dim=z_dim, h_dim=256)
+    # Vanilla Autoencoder
+    autoenc = VanillaAutoenc(n_channels=channels, z_dim=z_dim)
+    autoenc.cuda()
     #vae = VAE_lin(n_channels=channels, z_dim=z_dim)
-    vae.cuda()
+    #vae.cuda()
     bce_loss = nn.BCELoss(reduction='none')
     bce_loss.cuda()
 
@@ -116,19 +120,18 @@ def main():
     reduction_factor = 5
     char_weights[0] = 1 / 95 / reduction_factor
     char_weights[1:] = (1 - char_weights[0]) / 94
-
     ce_loss = nn.CrossEntropyLoss(weight=char_weights)
     ce_loss.cuda()
 
     mse_loss = nn.MSELoss(reduction='none')
     mse_loss.cuda()
-
     if args.one_hot:
         #loss_fn = bce_loss
         loss_fn = ce_loss
     else:
         loss_fn = mse_loss
-    optimizer = torch.optim.Adam(vae.parameters(), lr=args.learning_rate)
+
+    optimizer = torch.optim.Adam(autoenc.parameters(), lr=args.learning_rate)
     Tensor = torch.cuda.FloatTensor
     device = torch.device("cuda")
 
@@ -140,10 +143,10 @@ def main():
         loss_filter = None
 
     if args.load:
-        vae.load_state_dict(
-            torch.load(path.join(args.load, "vae.pth.tar"))
+        autoenc.load_state_dict(
+            torch.load(path.join(args.load, "autoencoder.pth.tar"))
         )
-        print("Loaded vae")
+        print("Loaded autoencoder")
         with open(path.join(args.load, "epoch"), "r") as f:
             start_epoch = int(f.read())
     else:
@@ -152,28 +155,34 @@ def main():
     in_tensor = torch.rand(7, channels, args.res, args.res)
     in_tensor = in_tensor.to(device)
     print("Encoder:")
-    out_tensor = utils.debug_model(vae.encoder, in_tensor)
+    out_tensor = utils.debug_model(autoenc.encoder, in_tensor)
     print("Decoder:")
-    utils.debug_model(vae.decoder, out_tensor)
+    utils.debug_model(autoenc.decoder, out_tensor)
 
     for epoch in range(start_epoch, args.n_epochs):
         for i, data in enumerate(dataloader):
             optimizer.zero_grad()
             images = data[0]
             images = Variable(images.type(Tensor))
-
             labels = data[1]
-            gen_im, mu, logvar = vae(images)
-            loss = vae_loss(gen_im, images, mu, logvar, loss_fn)
+
+            # VAE
+            #gen_im, mu, logvar = vae(images)
+            #loss = vae_loss(gen_im, images, mu, logvar, loss_fn)
+
+            # Vanilla Autoencoder
+            gen_im = autoenc(images)
+            loss = ce_loss(gen_im, images.argmax(1))
+
             loss.backward()
             optimizer.step()
 
         if epoch % args.print_every == 0:
             image, label = dataset[random.randint(0,len(dataset)-1)]
             with torch.no_grad():
-                vae.eval()
-                gen_im, mu, logvar = vae(Tensor(image).unsqueeze(0))
-                vae.train()
+                autoenc.eval()
+                gen_im = autoenc(Tensor(image).unsqueeze(0))
+                autoenc.train()
             print(image.mean(axis=(1,2)))
             print(gen_im[0].mean(axis=[1,2]))
             print(dataset.decode(image))
@@ -183,9 +192,9 @@ def main():
 
         if epoch % args.save_every == 0:
             print("Saving...")
-            save(vae, epoch, "./models/{}/".format(args.run_name))
+            save(autoenc, epoch, "./models/{}/".format(args.run_name))
 
-    save(vae, args.n_epochs, "./models/{}/".format(args.run_name))
+    save(autoenc, args.n_epochs, "./models/{}/".format(args.run_name))
 
 
 
@@ -193,7 +202,7 @@ def main():
 
 def save(autoenc: VAE, epoch: int, models_dir: str):
     os.makedirs(models_dir, exist_ok=True) 
-    torch.save(autoenc.state_dict(), "{}/vae.pth.tar".format(models_dir, epoch))
+    torch.save(autoenc.state_dict(), "{}/autoencoder.pth.tar".format(models_dir, epoch))
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
 
