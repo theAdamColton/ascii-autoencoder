@@ -14,9 +14,11 @@ from torchsummary import summary
 
 import bpdb
 
+import ascii_util
 from dcganmodels import DCGAN_D, DCGAN_G, DLinGan_D, DLinGan_G
 from character_embeddings.embeddings import CharacterEmbeddings
 from dataset import AsciiArtDataset
+from autoencoder_models import VanillaAutoenc
 import utils
 
 
@@ -63,10 +65,10 @@ def main():
     parser.add_argument(
         "--run-name",
         dest="run_name",
-        default="test_run",
+        default="gan_test_run",
     )
     parser.add_argument(
-        "--autoenc-path", dest="autoenc_path"
+        "--autoenc-path", dest="autoenc_path", required=True
     )
     parser.add_argument("-l", "--load", dest="load", help="load models from directory")
     parser.add_argument(
@@ -78,9 +80,9 @@ def main():
     parser.add_argument("--noise-std", dest="noise_std", type=float, default=0.00)
 
     """ Settings that require recreating the model """
-    parser.add_argument("-r", "--res", dest="res", type=int)
-    parser.add_argument("--autoenc-latent-dim", dest="autoenc_latent_dim", type=int)
-    parser.add_argument("--nz", dest="nz", type=int)
+    parser.add_argument("-r", "--res", dest="res", type=int, default=64)
+    parser.add_argument("--autoenc-latent-dim", dest="autoenc_latent_dim", type=int, required=True)
+    parser.add_argument("--nz", dest="nz", type=int, required=True)
     args = parser.parse_args()
 
     # Arguments validity checking
@@ -100,12 +102,10 @@ def main():
     cuda = True if torch.cuda.is_available() else False
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    _kwargs = dict(
+    dataset = AsciiArtDataset(
         res=img_size,
         embedding_kind='one-hot',
-    )
-    dataset = AsciiArtDataset(
-        **{k: v for k, v in _kwargs.items() if v is not None},
+        load_autoenc_embeddings=True,
     )
 
     if args.keep_training_data_on_gpu:
@@ -118,7 +118,7 @@ def main():
         batch_size=batch_size,
         num_workers=args.n_workers,
         shuffle=True,
-        pin_memory=not args.keep_training_data_on_gpu,
+        #pin_memory=not args.keep_training_data_on_gpu,
     )
 
     run_dir = os.path.join(os.path.dirname(__file__), "models/", args.run_name)
@@ -128,8 +128,16 @@ def main():
     xe_loss = torch.nn.CrossEntropyLoss()
     mse_loss = torch.nn.MSELoss()
 
-    generator = DLinGan_G(nz, autoenc_latent_dim, )
-    discriminator = DLinGan_D(autoenc_latent_dim, )
+    autoenc = VanillaAutoenc(n_channels=95, z_dim=autoenc_latent_dim, categorical=True)
+    autoenc.load_state_dict(
+        torch.load(args.autoenc_path + "/autoencoder.pth.tar")
+    )
+    autoenc.cuda()
+    autoenc.eval()
+    print("Loaded autoencoder")
+
+    generator = DLinGan_G(nz, autoenc_latent_dim)
+    discriminator = DLinGan_D(autoenc_latent_dim, downscale_factor=2)
     generator.apply(utils.weights_init)
     discriminator.apply(utils.weights_init)
 
@@ -173,15 +181,15 @@ def main():
     # Training loop
     print("\nBegin training session with %i epochs...\n" % (n_epochs))
     for epoch in range(start_epoch, n_epochs):
-        for imgs in dataloader:
-            imgs = imgs[0]
+        for imgs, img_embeddings, labels in dataloader:
+            imgs = img_embeddings
 
             # Adversarial ground truths
             valid = Variable(
-                Tensor(imgs.shape[0],).fill_(1.0), requires_grad=False
+                Tensor(imgs.shape[0], 1).fill_(1.0), requires_grad=False
             )
             fake = Variable(
-                Tensor(imgs.shape[0],).fill_(0.0), requires_grad=False
+                Tensor(imgs.shape[0], 1).fill_(0.0), requires_grad=False
             )
 
             # Configure input
@@ -209,6 +217,7 @@ def main():
             #  Train Discriminator
             # ---------------------
 
+            bpdb.set_trace()
             if epoch % args.train_dis_every == 0:
                 optimizer_D.zero_grad()
                 # Measure discriminator's ability to classify real from generated samples
@@ -235,10 +244,15 @@ def main():
             noise = torch.randn(1, nz, device=device)
             with torch.no_grad():
                 generator.eval()
-                gen_im = generator(noise)[0]
+                gen_im = generator(noise)
                 real_im = dataset[random.randint(0, len(dataset))][0]
-                #print(dataset.decode(real_im))
-                #print(dataset.decode(gen_im[0]))
+                real_im = Tensor(real_im)
+                gen_decoded = autoenc.decoder(gen_im)
+                real_decoded = autoenc.decoder(real_im.unsqueeze(0))
+                gen_str = dataset.decode(gen_decoded[0])
+                real_str =dataset.decode(real_decoded[0])
+                side_by_side = ascii_util.horizontal_concat(gen_str, real_str)
+                print(side_by_side)
             generator.train()
 
     # Save current state of trained models

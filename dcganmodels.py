@@ -89,7 +89,7 @@ class DCGAN_D(nn.Module):
         return output
 
 class DLinGan_D(nn.Module):
-    def __init__(self, imdim: int, initial_layers = 1, downscale_factor=2):
+    def __init__(self, imdim: int, initial_layers = 1, downscale_factor=2, final_layer_size=16):
         self.name = "DeepLinearGanDiscriminator"
         super().__init__()
 
@@ -97,20 +97,20 @@ class DLinGan_D(nn.Module):
         assert imdim % 2 == 0
 
         main = nn.Sequential()
-        for _ in initial_layers:
-            main.add_module(nn.Linear(imdim, imdim))
-            main.add_module(nn.LeakyReLU())
-            main.add_module(nn.BatchNorm1d(imdim))
+        for i in range(initial_layers):
+            main.add_module("Lin {}".format(i), nn.Linear(imdim, imdim))
+            main.add_module("LRLU {}".format(i), nn.LeakyReLU())
+            main.add_module("BN {}".format(i), nn.BatchNorm1d(imdim))
 
         dim = imdim
-        while dim > 1:
-            main.add_module(nn.Linear(dim, dim//downscale_factor))
-            dim /= downscale_factor
-            main.add_module(nn.LeakyReLU())
-            main.add_module(nn.BatchNorm1d(imdim))
+        while dim > final_layer_size:
+            main.add_module("Lin {}".format(dim), nn.Linear(dim, dim//downscale_factor))
+            dim //= downscale_factor
+            main.add_module("LRLU {}".format(dim), nn.LeakyReLU())
+            main.add_module("BN {}".format(dim), nn.BatchNorm1d(dim))
 
-        main.add_module(nn.Linear(dim, 1))
-        main.add_module(nn.Sigmoid())
+        main.add_module("Lin out", nn.Linear(dim, 1))
+        main.add_module("Sig out", nn.Sigmoid())
         self.main = main
 
     def forward(self, input):
@@ -125,21 +125,21 @@ class DLinGan_G(nn.Module):
         assert upscale_factor % 2 == 0
 
         main = nn.Sequential()
-        for _ in initial_layers:
-            main.add_module(nn.Linear(nz, nz))
-            main.add_module(nn.LeakyReLU())
-            main.add_module(nn.BatchNorm1d(nz))
+        for i in range(initial_layers):
+            main.add_module("Lin {}".format(i), nn.Linear(nz, nz))
+            main.add_module("LRLU {}".format(i), nn.LeakyReLU())
+            main.add_module("BN {}".format(i), nn.BatchNorm1d(nz))
 
         dim = nz
         while dim < imdim:
-            main.add_module(nn.Linear(dim, dim*upscale_factor))
+            main.add_module("Lin {}".format(dim), nn.Linear(dim, dim*upscale_factor))
             dim *= upscale_factor
-            main.add_module(nn.LeakyReLU())
-            main.add_module(nn.BatchNorm1d(dim))
+            main.add_module("LRLU {}".format(dim), nn.LeakyReLU())
+            main.add_module("BN {}".format(dim), nn.BatchNorm1d(dim))
 
-        main.add_module(nn.Linear(dim, imdim))
-        main.add_module(nn.LeakyReLU())
-        main.add_module(nn.BatchNorm1d(imdim))
+        main.add_module("Lin out", nn.Linear(dim, imdim))
+        main.add_module("LRLU out", nn.LeakyReLU())
+        main.add_module("BN out", nn.BatchNorm1d(imdim))
 
         self.main = main
 

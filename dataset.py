@@ -146,7 +146,7 @@ class AsciiArtDataset(Dataset):
         label = self.__get_category_string_from_datapath(filename)
 
         if self.load_autoenc_embeddings:
-            latent_emb = self.get_latent_embedding(filename)
+            latent_emb = self.get_latent_embedding(filename).squeeze(0)
             return embeddings, latent_emb, label
 
         return embeddings, label
