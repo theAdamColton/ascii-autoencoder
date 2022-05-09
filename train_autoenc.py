@@ -46,7 +46,7 @@ def main():
         help="Number of dataset workers, not compatible with --keep-training-data-on-gpu",
     )
     parser.add_argument("--learning-rate", dest="learning_rate", default=5e-5, type=float)
-    parser.add_argument("--focus-loss", dest="focus_loss", default=False, help="Make the less greater for areas in the center of the image")
+    parser.add_argument("--latent-noise", dest="latent_noise", default=None, type=float, help="std of noise added to latent space")
     parser.add_argument(
         "-b", "--batch_size", dest="batch_size", default=64, type=int, help="Batch size"
     )
@@ -126,13 +126,6 @@ def main():
     Tensor = torch.cuda.FloatTensor
     device = torch.device("cuda")
 
-    if args.focus_loss:
-        # Gauss filter with mean and std
-        loss_filter = utils.gkern(args.res, 5.0)
-        loss_filter = Tensor(loss_filter)
-    else:
-        loss_filter = None
-
     if args.load:
         autoenc.load_state_dict(
             torch.load(path.join(args.load, "autoencoder.pth.tar"))
@@ -158,7 +151,12 @@ def main():
             labels = data[1]
 
             # Vanilla Autoencoder
-            gen_im = autoenc(images)
+            z = autoenc.encoder(images)
+            if args.latent_noise:
+                noise = Tensor(torch.randn(*z.shape, device=device) * args.latent_noise)
+                z += noise
+            gen_im = autoenc.decoder(z)
+
             if args.one_hot:
                 loss = ce_loss(gen_im, images.argmax(1))
             else:

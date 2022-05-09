@@ -78,7 +78,6 @@ def main():
     )
     parser.add_argument("--noise-std", dest="noise_std", type=float, default=0.00)
     parser.add_argument("--noise-mean", dest="noise_mean", type=float, default=0.0)
-    parser.add_argument("--wass-clip", dest="wass_clip", type=bool)
 
     """ Settings that require recreating the model """
     parser.add_argument("-c", "--channels", dest="channels", type=int)
@@ -118,11 +117,11 @@ def main():
     run_name = args.run_name
     n_epochs = args.n_epochs
     batch_size = args.batch_size
+    nz = args.nz
     lr = 1e-4
     b1 = 0.5
     b2 = 0.99
 
-    # Image sizes
     img_size = args.res
     assert img_size % 16 == 0
     if args.embedding_kind == "one-hot":
@@ -130,18 +129,9 @@ def main():
     elif args.embedding_kind == "decompose":
         channels = args.channels
 
-    # Size of z latent vector for generator input
-    nz = args.nz
-
-    # both were originally 10
-    betan = 0
-    betac = 0
-
-    # Device
     cuda = True if torch.cuda.is_available() else False
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    # Dataset
     _kwargs = dict(
         res=img_size,
         character_embeddings=os.path.join(
@@ -149,9 +139,6 @@ def main():
             "./character_embeddings/character_embeddings{}d.npy".format(channels),
         ),
         embedding_kind=args.embedding_kind,
-        added_noise_mean=args.noise_mean,
-        added_noise_std=args.noise_std,
-        should_add_noise=args.embedding_kind == "decompose",
     )
     dataset = AsciiArtDataset(
         **{k: v for k, v in _kwargs.items() if v is not None},
