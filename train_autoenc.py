@@ -17,7 +17,8 @@ import torch.nn as nn
 
 from dataset import AsciiArtDataset
 import utils
-from autoencoder_models import VAE, VAE_lin, VanillaAutoenc
+import ascii_util
+from autoencoder_models import VanillaAutoenc
 
 
 def main():
@@ -158,11 +159,10 @@ def main():
 
             # Vanilla Autoencoder
             gen_im = autoenc(images)
-            bpdb.set_trace()
             if args.one_hot:
                 loss = ce_loss(gen_im, images.argmax(1))
             else:
-                loss = mse_loss(gen_im, images)
+                loss = bce_loss(gen_im, images)
 
             loss.backward()
             optimizer.step()
@@ -173,9 +173,11 @@ def main():
                 autoenc.eval()
                 gen_im = autoenc(Tensor(image).unsqueeze(0))
                 autoenc.train()
-            print(dataset.decode(image))
+            image_str = dataset.decode(image)
+            gen_str = dataset.decode(gen_im[0].detach())
+            side_by_side = ascii_util.horizontal_concat(image_str, gen_str)
+            print(side_by_side)
             print(label)
-            print(dataset.decode(gen_im[0].detach()))
         print("Epoch [{}/{}] Loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size))
 
         if epoch % args.save_every == 0:
@@ -184,7 +186,7 @@ def main():
     save(autoenc, args.n_epochs, "./models/{}/".format(args.run_name))
 
 
-def save(autoenc: VAE, epoch: int, models_dir: str):
+def save(autoenc: VanillaAutoenc, epoch: int, models_dir: str):
     os.makedirs(models_dir, exist_ok=True) 
     torch.save(autoenc.state_dict(), "{}/autoencoder.pth.tar".format(models_dir, epoch))
     with open(path.join(models_dir, "epoch"), "w") as f:

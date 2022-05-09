@@ -45,3 +45,14 @@ def string_reshape(s: str, x: int) -> str:
     assert len(s) % x == 0
     res = '\n'.join(s[i:i+x] for i in range(0, len(s), x))
     return res
+
+
+def horizontal_concat(s1: str, s2: str, separator = "   |   ") -> str:
+    """Concats two 'square' shaped strings"""
+    out = ""
+    for i, (line1, line2) in enumerate(zip(s1.split("\n"), s2.split("\n"))):
+        if i == len(line1) -1:
+            out += line1 + separator + line2
+        else:
+            out += line1 + separator + line2 + "\n"
+    return out
