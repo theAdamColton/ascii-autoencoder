@@ -66,6 +66,10 @@ def main(stdscr, args):
     curses.curs_set(False)
     pad = curses.newpad(80, 80)
 
+    rows, cols = stdscr.getmaxyx()
+    assert rows >= 64 and cols >= 64, "Terminal size needs to be at least 64x64"
+    
+
     next_frame = time.time() + 1 / args.frame_rate
     embedding2 = get_random(device, dataset)
     while True:
