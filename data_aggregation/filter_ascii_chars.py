@@ -3,7 +3,6 @@ Deletes all .txt files that have non allowed ascii characters
 (not in 32 - 126)
 """
 
-from os import path
 import subprocess
 from glob import glob
 

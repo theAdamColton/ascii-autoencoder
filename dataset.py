@@ -39,14 +39,17 @@ class AsciiArtDataset(Dataset):
         should_min_max_transform=False,
         channels=8,
         max_samples=None,
+        validation_prop=None
     ):
         """
         res: Desired resolution of the square ascii art
         datapath: Optional specification of the directory containing *.txt files, organized by directory in categories
         embedding_kind: One of 'one-hot', 'decompose'
             'one-hot' indicates that each character in the image will be represented by a
-        channels: number of channels to use if embedding_kind is decompose.
         should_min_max_transform: If true, will scale all the data to 0 - 1, by examining the smallest and largest values
+        channels: number of channels to use if embedding_kind is decompose.
+        max_samples: The maximum number of training samples to take.
+        validation_prop: The proportion of data to use as validation
         """
         self.res = res
         self.should_min_max_transform = should_min_max_transform
@@ -96,6 +99,10 @@ class AsciiArtDataset(Dataset):
                                 asciifiles.remove(file)
 
         self.asciifiles = list(asciifiles)
+        if validation_prop:
+            max_idx = int(len(self.asciifiles) * validation_prop)
+            self.validation_ascii_files = self.asciifiles[max_idx:]
+            self.asciifiles = self.asciifiles[0:max_idx]
         if max_samples:
             self.asciifiles = self.asciifiles[:max_samples+1]
 
@@ -108,11 +115,15 @@ class AsciiArtDataset(Dataset):
         as a self.channels by self.res by self.res array
         """
         filename = self.asciifiles[index]
+        return self.__getitem_from_filename__(filename)
 
+    def get_validation_item(self, index):
+        filename = self.validation_ascii_files[index]
+        return self.__getitem_from_filename__(filename)
+
+    def __getitem_from_filename__(self, filename):
         with open(filename, "r") as f:
             content = f.read()
-
-        # print("filename {}, content {}".format( filename, content))
 
         if self.res:
             content = ascii_util.pad_to_x_by_x(content, self.res)

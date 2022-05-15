@@ -3,11 +3,8 @@ For each file, gets the maximum line length, pads the end of the line to the
 max line length with zeros, and then writes it.
 """
 
-import os
 import glob
 import subprocess
-
-import bpdb
 
 
 def get_max_line_length(file) -> int:

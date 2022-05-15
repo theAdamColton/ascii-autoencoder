@@ -6,8 +6,6 @@ Also, deletes any files using tabs
 import os
 import subprocess
 import glob
-import re
-
 
 txtfiles = glob.glob("data/**/*.txt", recursive=True)
 lowerbytelimit = 25
