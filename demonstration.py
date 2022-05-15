@@ -9,6 +9,7 @@ import argparse
 from os import path
 import curses
 import time
+import bpdb
 
 from dataset import AsciiArtDataset
 from autoencoder_models import VanillaAutoenc
@@ -35,15 +36,21 @@ def get_args():
             "models/autoenc_vanilla_deep_cnn_one_hot_64_with_noise",
         ),
     )
+    parser.add_argument(
+            "--z-dim",
+            default=256,
+            dest="z_dim",
+            type=int,
+            )
 
     return parser.parse_args()
 
 
 def main(stdscr, args):
     dataset = AsciiArtDataset(
-        res=64, embedding_kind="one-hot", load_autoenc_embeddings=True
+        res=64, embedding_kind="one-hot"
     )
-    z_dim = 256
+    z_dim = args.z_dim
 
     cuda = torch.cuda.is_available()
     if cuda:
@@ -71,10 +78,10 @@ def main(stdscr, args):
     
 
     next_frame = time.time() + 1 / args.frame_rate
-    embedding2 = get_random(device, dataset)
+    embedding2 = get_random(device, dataset, autoenc.encoder)
     while True:
         embedding1 = embedding2
-        embedding2 = get_random(device, dataset)
+        embedding2 = get_random(device, dataset, autoenc.encoder)
 
         for x in np.linspace(0, 1, 100):
 
@@ -84,7 +91,7 @@ def main(stdscr, args):
             x_scaled = np.log10(x ** args.smooth_factor + 1) * 3.322
             with torch.no_grad():
                 interp_embedding = x_scaled * embedding2 + (1 - x) * embedding1
-                decoded = autoenc.decoder(interp_embedding.unsqueeze(0))
+                decoded = autoenc.decoder(interp_embedding)
                 decoded_str = dataset.decode(decoded[0])
 
             pad.addstr(0, 0, decoded_str)
@@ -94,9 +101,12 @@ def main(stdscr, args):
         time.sleep(args.hold_length)
 
 
-def get_random(device, dataset):
-    embedding = dataset[random.randint(0, len(dataset) - 1)][1]
-    embedding = embedding.to(device)
+def get_random(device, dataset, encoder):
+    img = dataset[random.randint(0, len(dataset) - 1)][0]
+    img = torch.FloatTensor(img).to(device)
+    img = img.unsqueeze(0)
+    with torch.no_grad():
+        embedding = encoder(img)
     return embedding
 
 

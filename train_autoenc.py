@@ -12,6 +12,7 @@ import os
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.nn as nn
+from tqdm import tqdm
 
 
 from dataset import AsciiArtDataset
@@ -168,7 +169,10 @@ def main():
         in_tensor = in_tensor.to(device)
         utils.debug_model(discriminator, in_tensor)
 
-    for epoch in range(start_epoch, args.n_epochs):
+    g_loss = None
+    d_loss = None
+
+    for epoch in tqdm(range(start_epoch, args.n_epochs)):
         for i, data in enumerate(dataloader):
             optimizer.zero_grad()
             images = data[0]
@@ -228,14 +232,24 @@ def main():
             print(label)
 
         print("Epoch [{}/{}] Recon. loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size), end="")
-        if args.adversarial and g_loss is not None:
-            print(" Disc. loss {}".format(g_loss.item()), end="")
+        if args.adversarial:
+            if d_loss is not None:
+                print(" Disc. loss {}".format(d_loss.item()), end="")
+            if g_loss is not None:
+                print(" Gen. loss {}".format(g_loss.item()), end="")
         print()
 
         if epoch % args.save_every == 0:
-            save(autoenc, epoch, "./models/{}/".format(args.run_name))
+            if args.adversarial:
+                save(autoenc, epoch, "./models/{}/".format(args.run_name), discriminator=discriminator)
+            else:
+                save(autoenc, epoch, "./models/{}/".format(args.run_name))
 
-    save(autoenc, args.n_epochs, "./models/{}/".format(args.run_name))
+
+    if args.adversarial:
+        save(autoenc, epoch, "./models/{}/".format(args.run_name), discriminator = discriminator)
+    else:
+        save(autoenc, epoch, "./models/{}/".format(args.run_name))
 
 
 def save(autoenc: VanillaAutoenc, epoch: int, models_dir: str, discriminator = None):
@@ -245,7 +259,7 @@ def save(autoenc: VanillaAutoenc, epoch: int, models_dir: str, discriminator = N
         torch.save(discriminator.state_dict(), "{}/discrim.pth.tar".format(models_dir))
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
-    print("Saved...")
+    print("saved.")
 
 if __name__ in {"__main__", "__console__"}:
     main()
