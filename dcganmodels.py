@@ -18,7 +18,7 @@ class DCGAN_D(nn.Module):
     ndf - intermediate channel width
     """
 
-    def __init__(self, isize, nz, nc, ndf, ngpu, n_extra_layers=0):
+    def __init__(self, isize, nc, ndf, ngpu=1, n_extra_layers=0):
         self.name="DCGAN_D"
         super(DCGAN_D, self).__init__()
         self.ngpu = ngpu
