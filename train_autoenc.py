@@ -48,7 +48,7 @@ def main():
         help="Number of dataset workers, not compatible with --keep-training-data-on-gpu",
     )
     parser.add_argument("--learning-rate", dest="learning_rate", default=5e-5, type=float)
-    parser.add_argument("--latent-noise", dest="latent_noise", default=None, type=float, help="std of noise added to latent space")
+    parser.add_argument("--latent-noise", dest="latent_noise", default=None, type=float, help="std of noise added to latent space for training reconstruction loss.")
     parser.add_argument(
         "-b", "--batch_size", dest="batch_size", default=64, type=int, help="Batch size"
     )
@@ -78,6 +78,7 @@ def main():
     # Adversarial specific arguments
     parser.add_argument("--train-disc-every", type=int, dest="train_disc_every", default=1)
     parser.add_argument("--train-gen-every", type=int, dest="train_gen_every", default=1)
+    parser.add_argument("--train-autoenc-every", type=int, dest="train_autoenc_every", default=1)
 
     args = parser.parse_args()
 
@@ -174,29 +175,31 @@ def main():
 
     for epoch in tqdm(range(start_epoch, args.n_epochs)):
         for i, data in enumerate(dataloader):
-            optimizer.zero_grad()
             images = data[0]
             images = Variable(images.type(Tensor))
             labels = data[1]
 
-            # Vanilla Autoencoder loss
-            z = autoenc.encoder(images)
-            if args.latent_noise:
-                noise = Tensor(torch.randn(*z.shape, device=device) * args.latent_noise)
-                z += noise
-            gen_im = autoenc.decoder(z)
+            if epoch % args.train_autoenc_every == 0:
+                # Vanilla Autoencoder loss
+                optimizer.zero_grad()
+                z = autoenc.encoder(images)
+                if args.latent_noise:
+                    noise = Tensor(torch.randn(*z.shape, device=device) * args.latent_noise)
+                    z += noise
+                gen_im = autoenc.decoder(z)
 
-            if args.one_hot:
-                loss = ce_loss(gen_im, images.argmax(1))
-            else:
-                loss = bce_loss(gen_im, images)
+                if args.one_hot:
+                    loss = ce_loss(gen_im, images.argmax(1))
+                else:
+                    loss = bce_loss(gen_im, images)
 
-            loss.backward()
-            optimizer.step()
+                loss.backward()
+                optimizer.step()
 
             if args.adversarial:
                 if epoch % args.train_disc_every == 0:
                     autoenc.eval()
+                    discriminator.zero_grad()
                     # Discriminator loss
                     # Sample from N(0, 5)
                     z_real_gauss = Variable(torch.randn(*z.shape, device=device) * 5)
@@ -204,17 +207,24 @@ def main():
                     z_fake_gauss = autoenc.encoder(images)
                     d_fake_gauss = discriminator(z_fake_gauss)
 
-                    # Adding the small number (I think) is to prevent log(0)
-                    d_loss = -torch.mean(torch.log(d_real_gauss + 1E-15) +  torch.log(1-d_fake_gauss + 1E-15))
+                    real_label = torch.full(d_real_gauss.shape, 1.0, dtype=torch.float, device=device, requires_grad=False)
+                    fake_label = torch.full(d_fake_gauss.shape, 0.0, dtype=torch.float, device=device, requires_grad=False)
+
+                    real_loss = bce_loss(d_real_gauss, real_label)
+                    fake_loss = bce_loss(d_fake_gauss, fake_label)
+                    d_loss = (real_loss + fake_loss) /2
                     d_loss.backward()
                     optim_D.step()
                     autoenc.train()
 
                 if epoch % args.train_gen_every == 0:
+                    autoenc.zero_grad()
                     # Generator loss
                     z_fake_gauss = autoenc.encoder(images)
                     d_fake_gauss = discriminator(z_fake_gauss)
-                    g_loss = -torch.mean(torch.log(d_fake_gauss + 1E-15))
+                    
+                    real_label = torch.full((images.shape[0], 1), 1.0, dtype=torch.float, device=device, requires_grad=False)
+                    g_loss = bce_loss(d_fake_gauss, real_label)
                     g_loss.backward()
                     optimizer.step()
 

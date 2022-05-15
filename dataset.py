@@ -39,7 +39,6 @@ class AsciiArtDataset(Dataset):
         should_min_max_transform=False,
         channels=8,
         max_samples=None,
-        load_autoenc_embeddings=False,
     ):
         """
         res: Desired resolution of the square ascii art
@@ -48,12 +47,10 @@ class AsciiArtDataset(Dataset):
             'one-hot' indicates that each character in the image will be represented by a
         channels: number of channels to use if embedding_kind is decompose.
         should_min_max_transform: If true, will scale all the data to 0 - 1, by examining the smallest and largest values
-        load_autoenc_embeddings: If true, will expect to find **/*.pt latent space representations of each ascii text file
         """
         self.res = res
         self.should_min_max_transform = should_min_max_transform
         self.embedding_kind = embedding_kind
-        self.load_autoenc_embeddings = load_autoenc_embeddings
 
         assert self.embedding_kind in {"decompose", "one-hot"}
         if self.should_min_max_transform:
@@ -143,10 +140,6 @@ class AsciiArtDataset(Dataset):
         embeddings = np.moveaxis(embeddings, 2,0)
 
         label = self.__get_category_string_from_datapath(filename)
-
-        if self.load_autoenc_embeddings:
-            latent_emb = self.get_latent_embedding(filename).squeeze(0)
-            return embeddings, latent_emb, label
 
         return embeddings, label
 
