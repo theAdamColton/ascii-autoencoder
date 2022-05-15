@@ -11,19 +11,20 @@ import os.path as path
 import os
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
-from torchsummary import summary
 import torch.nn as nn
 
 
 from dataset import AsciiArtDataset
 import utils
 import ascii_util
-from autoencoder_models import VanillaAutoenc
+from autoencoder_models import VanillaAutoenc, VanillaDisc
 
 
 def main():
     global args
     parser = argparse.ArgumentParser()
+
+    # Arguments that don't require reinitializing the model
     parser.add_argument("--print-every", "-p", dest="print_every", default=10, type=int)
     parser.add_argument(
         "--run-name",
@@ -68,9 +69,15 @@ def main():
     parser.add_argument("-l", "--load", dest="load", help="load models from directory")
 
     parser.add_argument("-r", "--res", dest="res", type=int, default=32)
-    parser.add_argument("--one-hot", dest="one_hot", type=bool, default=False)
+    parser.add_argument("--one-hot", dest="one_hot", action="store_true", default=False)
     parser.add_argument("--char-dim", dest="char_dim", type=int, default=8)
     parser.add_argument("--nz", dest="nz", type=int, default=None)
+    parser.add_argument("--adversarial", action="store_true", dest="adversarial", help="Enable training of a discriminator from random samples from the z latent space")
+
+    # Adversarial specific arguments
+    parser.add_argument("--train-disc-every", type=int, dest="train_disc_every", default=1)
+    parser.add_argument("--train-gen-every", type=int, dest="train_gen_every", default=1)
+
     args = parser.parse_args()
 
     # Argument correctness
@@ -110,6 +117,11 @@ def main():
     bce_loss = nn.BCELoss()
     bce_loss.cuda()
 
+    # The discriminator
+    if args.adversarial:
+        discriminator = VanillaDisc(args.nz)
+        discriminator.cuda()
+
     # weights for ce loss
     char_weights = torch.zeros(95)
     # Less emphasis on space characters
@@ -123,6 +135,9 @@ def main():
     mse_loss.cuda()
 
     optimizer = torch.optim.Adam(autoenc.parameters(), lr=args.learning_rate)
+    if args.adversarial:
+        optim_D = torch.optim.Adam(discriminator.parameters(), lr=args.learning_rate)
+
     Tensor = torch.cuda.FloatTensor
     device = torch.device("cuda")
 
@@ -130,6 +145,10 @@ def main():
         autoenc.load_state_dict(
             torch.load(path.join(args.load, "autoencoder.pth.tar"))
         )
+        if args.adversarial:
+            discriminator.load_state_dict(
+                torch.load(path.join(args.load, "discrim.pth.tar"))
+            )
         print("Loaded autoencoder")
         with open(path.join(args.load, "epoch"), "r") as f:
             start_epoch = int(f.read())
@@ -143,6 +162,12 @@ def main():
     print("Decoder:")
     utils.debug_model(autoenc.decoder, out_tensor)
 
+    if args.adversarial:
+        print("Discriminator")
+        in_tensor = torch.rand(7, args.nz)
+        in_tensor = in_tensor.to(device)
+        utils.debug_model(discriminator, in_tensor)
+
     for epoch in range(start_epoch, args.n_epochs):
         for i, data in enumerate(dataloader):
             optimizer.zero_grad()
@@ -150,7 +175,7 @@ def main():
             images = Variable(images.type(Tensor))
             labels = data[1]
 
-            # Vanilla Autoencoder
+            # Vanilla Autoencoder loss
             z = autoenc.encoder(images)
             if args.latent_noise:
                 noise = Tensor(torch.randn(*z.shape, device=device) * args.latent_noise)
@@ -165,6 +190,31 @@ def main():
             loss.backward()
             optimizer.step()
 
+            if args.adversarial:
+                if epoch % args.train_disc_every == 0:
+                    autoenc.eval()
+                    # Discriminator loss
+                    # Sample from N(0, 5)
+                    z_real_gauss = Variable(torch.randn(*z.shape, device=device) * 5)
+                    d_real_gauss = discriminator(z_real_gauss)
+                    z_fake_gauss = autoenc.encoder(images)
+                    d_fake_gauss = discriminator(z_fake_gauss)
+
+                    # Adding the small number (I think) is to prevent log(0)
+                    d_loss = -torch.mean(torch.log(d_real_gauss + 1E-15) +  torch.log(1-d_fake_gauss + 1E-15))
+                    d_loss.backward()
+                    optim_D.step()
+                    autoenc.train()
+
+                if epoch % args.train_gen_every == 0:
+                    # Generator loss
+                    z_fake_gauss = autoenc.encoder(images)
+                    d_fake_gauss = discriminator(z_fake_gauss)
+                    g_loss = -torch.mean(torch.log(d_fake_gauss + 1E-15))
+                    g_loss.backward()
+                    optimizer.step()
+
+
         if epoch % args.print_every == 0:
             image, label = dataset[random.randint(0,len(dataset)-1)]
             with torch.no_grad():
@@ -176,7 +226,11 @@ def main():
             side_by_side = ascii_util.horizontal_concat(image_str, gen_str)
             print(side_by_side)
             print(label)
-        print("Epoch [{}/{}] Loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size))
+
+        print("Epoch [{}/{}] Recon. loss: {}".format(epoch,args.n_epochs, loss.item()/args.batch_size), end="")
+        if args.adversarial and g_loss is not None:
+            print(" Disc. loss {}".format(g_loss.item()), end="")
+        print()
 
         if epoch % args.save_every == 0:
             save(autoenc, epoch, "./models/{}/".format(args.run_name))
@@ -184,9 +238,11 @@ def main():
     save(autoenc, args.n_epochs, "./models/{}/".format(args.run_name))
 
 
-def save(autoenc: VanillaAutoenc, epoch: int, models_dir: str):
+def save(autoenc: VanillaAutoenc, epoch: int, models_dir: str, discriminator = None):
     os.makedirs(models_dir, exist_ok=True) 
-    torch.save(autoenc.state_dict(), "{}/autoencoder.pth.tar".format(models_dir, epoch))
+    torch.save(autoenc.state_dict(), "{}/autoencoder.pth.tar".format(models_dir))
+    if discriminator:
+        torch.save(discriminator.state_dict(), "{}/discrim.pth.tar".format(models_dir))
     with open(path.join(models_dir, "epoch"), "w") as f:
         f.write(str(epoch))
     print("Saved...")
