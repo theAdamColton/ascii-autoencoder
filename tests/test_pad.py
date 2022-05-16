@@ -1,7 +1,9 @@
 import unittest
-from ascii_util import pad_to_x_by_x
+import sys
 import os
 from glob import glob
+sys.path.append(os.path.dirname(__file__) + "/../")
+from ascii_util import pad_to_x_by_x, pad_to_max_line_length
 
 
 class TestPad(unittest.TestCase):
@@ -40,3 +42,12 @@ class TestPad(unittest.TestCase):
             self.assertEqual(length, pad_length)
             for line in lines:
                 self.assertEqual(length, len(line))
+
+    def test_pad_to_max_line_length(self):
+        string = "01234\n012\n0\n0123"
+        out = pad_to_max_line_length(string, char="&")
+        print("result:\n%s" % out)
+        width = len(list(out.splitlines())[0].removesuffix('\n'))
+        for l in out.splitlines():
+            self.assertEqual(len(l.removesuffix('\n')), width)
+

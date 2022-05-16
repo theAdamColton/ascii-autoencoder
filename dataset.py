@@ -121,6 +121,9 @@ class AsciiArtDataset(Dataset):
         filename = self.validation_ascii_files[index]
         return self.__getitem_from_filename__(filename)
 
+    def get_validation_length(self):
+        return len(self.validation_ascii_files)
+
     def __getitem_from_filename__(self, filename):
         with open(filename, "r") as f:
             content = f.read()
@@ -203,6 +206,10 @@ class AsciiArtDataset(Dataset):
             s = one_hot_encoding.fuzzy_one_hot_to_str(x)
         s_res = ascii_util.string_reshape(s, self.res)
         return s_res
+
+    def encode_raw_ascii_string(s: string):
+        """Takes a string without proper sqaure padding, and will pad and encode it to self.res"""
+        pass
 
     def get_file_name(self, i):
         return self.asciifiles[i]

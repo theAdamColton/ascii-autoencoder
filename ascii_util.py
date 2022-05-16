@@ -3,6 +3,28 @@ Utilities for dealing with ascii art
 """
 
 
+def pad_to_max_line_length(s: str, char=" ") -> str:
+    """Pads each line of s to the max line length of all the lines in s.
+    char: character to pad with
+    """
+    maxlen = 0
+    for l in s.splitlines():
+        length = len(l)
+        if length > maxlen:
+            maxlen = length
+
+    print(maxlen)
+    
+    out = ""
+    for l in s.splitlines():
+        # Gets rid of the last '\n'
+        line = l.removesuffix('\n')
+        padded_line = line.ljust(maxlen, char)
+        out += padded_line + "\n"
+
+    return out
+
+
 def pad_to_x_by_x(ascii: str, x: int, char=" ") -> str:
     """
     Pads ascii by centering it with ' ' chars

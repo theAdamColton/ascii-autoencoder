@@ -71,6 +71,7 @@ def main():
 
     parser.add_argument("-r", "--res", dest="res", type=int, default=32)
     parser.add_argument("--one-hot", dest="one_hot", action="store_true", default=False)
+    parser.add_argument("--validation-prop", dest="validation_prop", default=None, type=float)
     parser.add_argument("--char-dim", dest="char_dim", type=int, default=8)
     parser.add_argument("--nz", dest="nz", type=int, default=None)
     parser.add_argument("--adversarial", action="store_true", dest="adversarial", help="Enable training of a discriminator from random samples from the z latent space")
@@ -100,6 +101,7 @@ def main():
         embedding_kind=embedding_kind,
         should_min_max_transform=not args.one_hot,
         channels=channels,
+        validation_prop=args.validation_prop
     )
     if args.keep_training_data_on_gpu:
         tdataset = dataset.to_tensordataset(torch.device("cuda"))
@@ -230,7 +232,11 @@ def main():
 
 
         if epoch % args.print_every == 0:
-            image, label = dataset[random.randint(0,len(dataset)-1)]
+            # Preview images from validation data if it was set as a flag
+            if args.validation_prop:
+                image, label = dataset.get_validation_item(random.randint(0, dataset.get_validation_length()-1)
+            else:
+                image, label = dataset[random.randint(0,len(dataset)-1)]
             with torch.no_grad():
                 autoenc.eval()
                 gen_im = autoenc(Tensor(image).unsqueeze(0))
