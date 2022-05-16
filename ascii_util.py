@@ -2,6 +2,18 @@
 Utilities for dealing with ascii art
 """
 
+import numpy as np
+from character_embeddings import one_hot_encoding
+
+def raw_string_to_squareized(s: str, x: int) -> str:
+    """
+    Takes a string s, with max line length less than x, and number of lines less than x,
+    and returns a x by x string with s in the middle of it, padded with space characters.
+    """
+    s_padded = pad_to_max_line_length(s)
+    s_squareized = pad_to_x_by_x(s_padded, x)
+    return s_squareized
+
 
 def pad_to_max_line_length(s: str, char=" ") -> str:
     """Pads each line of s to the max line length of all the lines in s.
@@ -78,3 +90,31 @@ def horizontal_concat(s1: str, s2: str, separator = "   |   ") -> str:
         else:
             out += line1 + separator + line2 + "\n"
     return out
+
+
+"""                Numpy operations                         """
+
+def raw_string_to_one_hot(s: str, x: int) -> np.ndarray:
+    squareized_s = raw_string_to_squareized(s, x)
+    return squareized_string_to_one_hot(squareized_s, x)
+
+def squareized_string_to_one_hot(s: str, x: int) -> np.ndarray:
+    """Takes a squareized string s and a length x,
+    returns an 95 by x by x array of one hot encodings"""
+    embedded = one_hot_encoding.get_one_hot_for_str(s)  
+    embedded.reshape(x, x, 95)
+    # Makes embeddings nchannels by image_res by image_res
+    embedded = np.moveaxis(embedded, 2,0)
+    return embedded
+
+def embedded_matrix_to_string(a: np.ndarray) -> str:
+    """Takes a 95 by x by x matrix a of one hot character embeddings and
+    returns a string"""
+    res = a.shape[1]
+    # Moves channels to last dim
+    a = np.moveaxis(a, 0, 2)
+    # Flattens
+    a = a.reshape(res**2, 95)
+    flat_s = one_hot_encoding.fuzzy_one_hot_to_str(a)
+    squareized_s = string_reshape(flat_s, res)
+    return squareized_s

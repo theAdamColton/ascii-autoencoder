@@ -193,7 +193,7 @@ class AsciiArtDataset(Dataset):
         if self.should_min_max_transform:
             x = self.character_embeddings.inverse_min_max_scaling(x)
 
-        assert len(x.shape) == 3
+        return ascii_util.embedded_matrix_to_string(x)
 
         # Moves channels to last dim
         x = np.moveaxis(x, 0, 2)
@@ -206,10 +206,6 @@ class AsciiArtDataset(Dataset):
             s = one_hot_encoding.fuzzy_one_hot_to_str(x)
         s_res = ascii_util.string_reshape(s, self.res)
         return s_res
-
-    def encode_raw_ascii_string(s: string):
-        """Takes a string without proper sqaure padding, and will pad and encode it to self.res"""
-        pass
 
     def get_file_name(self, i):
         return self.asciifiles[i]
