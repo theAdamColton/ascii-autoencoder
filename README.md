@@ -91,15 +91,14 @@ Even though the recreations were impressive, I thought that this model wasn't ve
 
 The adversarial model was more conservative about it's placement of rare characters, and tended not to overfit as aggressively as the native model. It was quick to learn horizontal and vertical lines, but struggled with recreating unusual characters.
 
-
 Adversarial:
-https://user-images.githubusercontent.com/72479734/168706861-b28ccb87-b2a7-44f3-8c6b-a28f94e6ad94.mp4
+<video src="https://user-images.githubusercontent.com/72479734/168706861-b28ccb87-b2a7-44f3-8c6b-a28f94e6ad94.mp4" controls="controls" style="max-width: 730px;">
 
+</video>
 
 Vanilla:
-https://user-images.githubusercontent.com/72479734/168706873-18fe8c5b-b162-4647-b310-662a46fa318b.mp4
-
-
+<video src="https://user-images.githubusercontent.com/72479734/168706873-18fe8c5b-b162-4647-b310-662a46fa318b.mp4" controls="controls" style="max-width: 730px;">
+</video>
 
 # Autoencoder trained with PCA generated character embeddings
 
