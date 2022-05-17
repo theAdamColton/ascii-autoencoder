@@ -101,13 +101,14 @@ def raw_string_to_one_hot(s: str, x: int) -> np.ndarray:
 def squareized_string_to_one_hot(s: str, x: int) -> np.ndarray:
     """Takes a squareized string s and a length x,
     returns an 95 by x by x array of one hot encodings"""
+    s = s.replace('\n', '')
     embedded = one_hot_encoding.get_one_hot_for_str(s)  
-    embedded.reshape(x, x, 95)
+    embedded = embedded.reshape(x, x, 95)
     # Makes embeddings nchannels by image_res by image_res
     embedded = np.moveaxis(embedded, 2,0)
     return embedded
 
-def embedded_matrix_to_string(a: np.ndarray) -> str:
+def one_hot_embedded_matrix_to_string(a: np.ndarray) -> str:
     """Takes a 95 by x by x matrix a of one hot character embeddings and
     returns a string"""
     res = a.shape[1]
@@ -118,3 +119,4 @@ def embedded_matrix_to_string(a: np.ndarray) -> str:
     flat_s = one_hot_encoding.fuzzy_one_hot_to_str(a)
     squareized_s = string_reshape(flat_s, res)
     return squareized_s
+

@@ -1,15 +1,12 @@
 import ascii_util
 from character_embeddings.embeddings import CharacterEmbeddings
-from character_embeddings import one_hot_encoding
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import TensorDataset
 from os import path
 from glob import glob
-import re
 
 DATADIR = path.abspath(path.join(path.dirname(__name__), "data_aggregation/data/"))
 import utils
@@ -128,14 +125,8 @@ class AsciiArtDataset(Dataset):
         with open(filename, "r") as f:
             content = f.read()
 
-        if self.res:
-            content = ascii_util.pad_to_x_by_x(content, self.res)
-
-        # Newlines are removed.
-        # The data is later reshaped into a square array, so
-        # newlines are superfluous
-        content = content.replace("\n", "")
-
+        content = ascii_util.raw_string_to_squareized(content, self.res)
+        
         # Embeds characters
         if self.embedding_kind == "decompose":
             embeddings = self.character_embeddings.embed(content)
@@ -144,24 +135,18 @@ class AsciiArtDataset(Dataset):
                 embeddings = (embeddings - self.min_char_emb) / (
                     self.max_char_emb - self.min_char_emb
                 )
+            # Makes embeddings image_res by image_res by channel
+            embeddings = embeddings.reshape(self.res,self.res,self.channels)
+            # Makes embeddings nchannels by image_res by image_res
+            embeddings = np.moveaxis(embeddings, 2,0)
 
         elif self.embedding_kind == "one-hot":
-            embeddings = one_hot_encoding.get_one_hot_for_str(content)
+            embeddings = ascii_util.squareized_string_to_one_hot(content, self.res)
 
-        # Makes embeddings image_res by image_res by channel
-        embeddings = embeddings.reshape(self.res,self.res,self.channels)
-        # Makes embeddings nchannels by image_res by image_res
-        embeddings = np.moveaxis(embeddings, 2,0)
 
         label = self.__get_category_string_from_datapath(filename)
 
         return embeddings, label
-
-    def get_latent_embedding(self, filename):
-        """filename is the name of an ascii text file"""
-        emb_name = filename.removesuffix(".txt") + ".pt"
-        out = torch.load(emb_name, map_location='cpu')
-        return out
 
     def to_tensordataset(self, device) -> TensorDataset:
         out = torch.Tensor(
@@ -193,19 +178,17 @@ class AsciiArtDataset(Dataset):
         if self.should_min_max_transform:
             x = self.character_embeddings.inverse_min_max_scaling(x)
 
-        return ascii_util.embedded_matrix_to_string(x)
+        if self.embedding_kind == "one-hot":
+            return ascii_util.one_hot_embedded_matrix_to_string(x)
+        elif self.embedding_kind == "decompose":
+            # Moves channels to last dim
+            x = np.moveaxis(x, 0, 2)
+            # Reshapes
+            x = x.reshape(self.res**2, self.channels)
 
-        # Moves channels to last dim
-        x = np.moveaxis(x, 0, 2)
-        # Reshapes
-        x = x.reshape(self.res**2, self.channels)
-
-        if self.embedding_kind == "decompose":
             s = self.character_embeddings.de_embed(x)
-        elif self.embedding_kind == "one-hot":
-            s = one_hot_encoding.fuzzy_one_hot_to_str(x)
-        s_res = ascii_util.string_reshape(s, self.res)
-        return s_res
+            s_res = ascii_util.string_reshape(s, self.res)
+            return s_res
 
     def get_file_name(self, i):
         return self.asciifiles[i]
