@@ -3,14 +3,14 @@
 * filter data, `filter_data.py`, deletes large and small files, deletes files with tabs
 * (Optional) pad data, `pad_data.py`, pads each line in each file with spaces up to the maximum line length.
 
-# Pre Train model
+# Pre Trained model
 * Batch size 128, z dim 128, resolution 64x64, 4240 epochs, one hot encoding and adversarial loss [mirror1](https://adamcolton.info/publicfiles/adversarial_autoenc.tar.gz).
 
 
 # PCA Character Embeddings
-Instead of using the square ascii art pieces as image data input, I generated character embeddings based on the character's appearance. Characters that look similar, are less distant in the embedding space than non similar looking characters. I performed PCA on images of the 95 ascii characters. This 2D representation shows the distribution of characters.
+I generated character embeddings based on the character's appearance. Characters that look similar, are less distant in the embedding space than non similar looking characters. I performed PCA on images of the 95 ascii characters. This 2D representation shows the distribution of characters.
 
-![Embedded characters on 2d plane](/figures/2d character embeddings.png)
+![Embedded characters on 2d plane](./figures/2d character embeddings.png)
 
 *Steps to reproduce this plot*
 * First generate images of the 95 characters using the script `generate_characters.py`, this saves the images to the `character_embeddings/out` directory.
