@@ -2,6 +2,7 @@
 * scrape data, `scrape_ascii_art.py`, downloads txt files
 * filter data, `filter_data.py`, deletes large and small files, deletes files with tabs
 * (Optional) pad data, `pad_data.py`, pads each line in each file with spaces up to the maximum line length.
+* You can find pre-scraped and preprocessed [here](https://adamcolton.info/publicfiles/all_ascii_art_data.tar.gz), to use it, extract the subfolders into the data_aggregation/data/ directory. 
 
 # Pre Trained model
 * Batch size 128, z dim 128, resolution 64x64, 4240 epochs, one hot encoding and adversarial loss [mirror1](https://adamcolton.info/publicfiles/adversarial_autoenc.tar.gz).
