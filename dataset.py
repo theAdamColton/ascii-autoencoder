@@ -97,9 +97,10 @@ class AsciiArtDataset(Dataset):
 
         self.asciifiles = list(asciifiles)
         if validation_prop:
-            max_idx = int(len(self.asciifiles) * validation_prop)
+            max_idx = int(len(self.asciifiles) * (1-validation_prop))
             self.validation_ascii_files = self.asciifiles[max_idx:]
             self.asciifiles = self.asciifiles[0:max_idx]
+            print("#{} training files, #{} validation files".format(len(self.asciifiles), len(self.validation_ascii_files))) 
         if max_samples:
             self.asciifiles = self.asciifiles[:max_samples+1]
 

@@ -234,7 +234,7 @@ def main():
         if epoch % args.print_every == 0:
             # Preview images from validation data if it was set as a flag
             if args.validation_prop:
-                image, label = dataset.get_validation_item(random.randint(0, dataset.get_validation_length()-1)
+                image, label = dataset.get_validation_item(random.randint(0, dataset.get_validation_length()-1))
             else:
                 image, label = dataset[random.randint(0,len(dataset)-1)]
             with torch.no_grad():

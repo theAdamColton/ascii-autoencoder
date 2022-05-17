@@ -24,7 +24,7 @@ def tensor_to_ascii_decomp(sample, dataset, img_size, channels):
     sample_rescaled = sample_rescaled.string_reshape(img_size ** 2, channels)
     s = dataset.character_embeddings.de_embed(sample_rescaled)
     s_res = ascii_util.string_reshape(s, img_size)
-    print(s_res)
+    return s_res
 
 
 def debug_model(model, input_tensor):

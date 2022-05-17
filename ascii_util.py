@@ -25,8 +25,6 @@ def pad_to_max_line_length(s: str, char=" ") -> str:
         if length > maxlen:
             maxlen = length
 
-    print(maxlen)
-    
     out = ""
     for l in s.splitlines():
         # Gets rid of the last '\n'
