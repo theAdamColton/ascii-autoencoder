@@ -19,7 +19,7 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-f", "--frame-rate", dest="frame_rate", type=float, default=10)
-    parser.add_argument("--steps", dest="steps", type=float, default=100)
+    parser.add_argument("--steps", dest="steps", type=int, default=100)
     parser.add_argument("--hold-length", dest="hold_length", default=0.5, type=float)
     parser.add_argument(
         "--smooth-factor",
@@ -83,7 +83,7 @@ def main(stdscr, args):
         embedding1 = embedding2
         embedding2 = get_random(device, dataset, autoenc.encoder)
 
-        for x in np.linspace(0, 1, 100):
+        for x in np.linspace(0, 1, args.steps):
 
             if time.time() > next_frame:
                 next_frame = time.time() + 1 / args.frame_rate

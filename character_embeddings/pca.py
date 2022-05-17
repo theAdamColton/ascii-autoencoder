@@ -72,4 +72,12 @@ def generate_character_embeddings(n_components=12):
 
 
 if __name__ in {"__main__", "__console__"}:
-    demonstration()
+    if input("Create PCA plot?").startswith("y"):
+        demonstration()
+    else:
+        ncomp = int(input("Number of components?"))
+        transformed_comps, _ = generate_character_embeddings(n_components=ncomp)
+        filename = input("Filename?")
+        with open(filename, "wb") as f:
+            np.save(f, transformed_comps)
+        print("Saved.")
