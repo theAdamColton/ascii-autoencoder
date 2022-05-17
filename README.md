@@ -87,9 +87,19 @@ I trained a simple convolutional autoencoder on the one hot character encodings 
 
 ```
 
-Even though the recreations were impressive, I thought that this model wasn't very impressive because all it had to do was overfit to the training data. I then trained a adversarial autoencoder, which introduced a discriminator loss to the encoder decoder block, with the purpose of getting the autoencoder to make realistic art depictions across the entire latent space. This model had a z dimension of 128, but was still capable of recreating the training data. The script `latent_space_explorer.py` demonstrated that the adversarial autoencoder had better looking art when interpolating linearly between different training data points. The interpolated representation of the latent space still didn't look like good ascii artwork, but it was an improvement over the first model I trained.
+Even though the recreations were impressive, I thought that this model wasn't very impressive because all it had to do was overfit to the training data. I then trained a adversarial autoencoder, which introduced a discriminator loss to the encoder decoder block, with the purpose of getting the autoencoder to make realistic art depictions across the entire latent space. This model had a z dimension of 128, but was still capable of recreating the training data. The script `latent_space_explorer.py` demonstrated that the adversarial autoencoder had better looking art when interpolating linearly between different training data points. The interpolated representation of the latent space still didn't look like good ascii artwork, but it was a very slight improvement over the first model I trained.
 
 The adversarial model was more conservative about it's placement of rare characters, and tended not to overfit as aggressively as the native model. It was quick to learn horizontal and vertical lines, but struggled with recreating unusual characters.
+
+
+Adversarial:
+https://user-images.githubusercontent.com/72479734/168706861-b28ccb87-b2a7-44f3-8c6b-a28f94e6ad94.mp4
+
+
+Vanilla:
+https://user-images.githubusercontent.com/72479734/168706873-18fe8c5b-b162-4647-b310-662a46fa318b.mp4
+
+
 
 # Autoencoder trained with PCA generated character embeddings
 
