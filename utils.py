@@ -11,7 +11,12 @@ import ascii_util
 def remove_prefix(text, prefix):
     if text.startswith(prefix):
         return text[len(prefix):]
-    raise Exception("No prefix")
+    #raise Exception("No prefix")
+
+def remove_suffix(text, suffix):
+    if text.endswith(suffix):
+        return text[:len(suffix)]
+    #raise Exception("No such suffix '{}' in text '{}'".format(suffix, text))
 
 def tensor_to_ascii_decomp(sample, dataset, img_size, channels):
     """

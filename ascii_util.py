@@ -3,6 +3,7 @@ Utilities for dealing with ascii art
 """
 
 import numpy as np
+import utils
 from character_embeddings import one_hot_encoding
 
 def raw_string_to_squareized(s: str, x: int) -> str:
@@ -28,7 +29,7 @@ def pad_to_max_line_length(s: str, char=" ") -> str:
     out = ""
     for l in s.splitlines():
         # Gets rid of the last '\n'
-        line = l.removesuffix('\n')
+        line = utils.remove_suffix(l, '\n')
         padded_line = line.ljust(maxlen, char)
         out += padded_line + "\n"
 
