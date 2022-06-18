@@ -3,6 +3,7 @@ Utilities for dealing with ascii art
 """
 
 import numpy as np
+import torch
 
 from character_embeddings import one_hot_encoding
 from string_utils import remove_prefix, remove_suffix, ljust
@@ -109,12 +110,12 @@ def squareized_string_to_one_hot(s: str, x: int) -> np.ndarray:
     embedded = np.moveaxis(embedded, 2,0)
     return embedded
 
-def one_hot_embedded_matrix_to_string(a: np.ndarray) -> str:
+def one_hot_embedded_matrix_to_string(a: torch.Tensor) -> str:
     """Takes a 95 by x by x matrix a of one hot character embeddings and
     returns a string"""
     res = a.shape[1]
     # Moves channels to last dim
-    a = np.moveaxis(a, 0, 2)
+    a = a.moveaxis(0, 2)
     # Flattens
     a = a.reshape(res**2, 95)
     flat_s = one_hot_encoding.fuzzy_one_hot_to_str(a)
