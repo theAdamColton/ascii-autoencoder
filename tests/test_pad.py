@@ -5,6 +5,8 @@ from glob import glob
 sys.path.append(os.path.dirname(__file__) + "/../")
 from ascii_util import pad_to_x_by_x, pad_to_max_line_length
 
+from string_utils import remove_suffix
+
 
 class TestPad(unittest.TestCase):
     def test_pad(self):
@@ -47,7 +49,8 @@ class TestPad(unittest.TestCase):
         string = "01234\n012\n0\n0123"
         out = pad_to_max_line_length(string, char="&")
         print("result:\n%s" % out)
-        width = len(list(out.splitlines())[0].removesuffix('\n'))
+        first = list(out.splitlines())[0]
+        width = len(remove_suffix(first, '\n'))
         for l in out.splitlines():
-            self.assertEqual(len(l.removesuffix('\n')), width)
+            self.assertEqual(len(remove_suffix(l, '\n')), width)
 

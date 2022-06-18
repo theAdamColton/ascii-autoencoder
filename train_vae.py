@@ -31,7 +31,7 @@ def get_training_args():
         "--n-workers",
         dest="n_workers",
         type=int,
-        default=0,
+        default=4,
         help="Number of dataset workers",
     )
     parser.add_argument("--learning-rate", dest="learning_rate", default=5e-5, type=float)
@@ -77,6 +77,8 @@ def main():
 
     if cuda:
         lit_vae.cuda()
+
+    lit_vae = lit_vae.to(torch.double)
 
     trainer = pl.Trainer(max_epochs=args.n_epochs)
 

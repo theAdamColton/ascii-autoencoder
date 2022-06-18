@@ -13,6 +13,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from tqdm import tqdm
+import bpdb
 
 
 from dataset import AsciiArtDataset

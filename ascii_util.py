@@ -3,8 +3,9 @@ Utilities for dealing with ascii art
 """
 
 import numpy as np
-import utils
+
 from character_embeddings import one_hot_encoding
+from string_utils import remove_prefix, remove_suffix, ljust
 
 def raw_string_to_squareized(s: str, x: int) -> str:
     """
@@ -29,20 +30,20 @@ def pad_to_max_line_length(s: str, char=" ") -> str:
     out = ""
     for l in s.splitlines():
         # Gets rid of the last '\n'
-        line = utils.remove_suffix(l, '\n')
-        padded_line = line.ljust(maxlen, char)
+        line = remove_suffix(l, '\n')
+        padded_line = ljust(line, maxlen, char)
         out += padded_line + "\n"
 
     return out
 
 
-def pad_to_x_by_x(ascii: str, x: int, char=" ") -> str:
+def pad_to_x_by_x(s: str, x: int, char=" ") -> str:
     """
     Pads ascii by centering it with ' ' chars
     Assumes that each line of ascii is already padded to the max
     length of its lines
     """
-    lines = ascii.splitlines()
+    lines = s.splitlines()
     line_width = len(lines[0])
     assert line_width <= x
 
@@ -62,6 +63,7 @@ def pad_to_x_by_x(ascii: str, x: int, char=" ") -> str:
     )
     if botpad != 0:
         out += vertical_pad(x, botpad, char=char)
+
     return out
 
 

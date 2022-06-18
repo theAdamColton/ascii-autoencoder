@@ -148,10 +148,10 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0),
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
             nn.Sigmoid(),
         )
 
@@ -169,10 +169,10 @@ class VariationalEncoder(nn.Module):
         super().__init__()
         self.encoder = nn.Sequential(
         # Input batchsize x n_channels x 64 x 64
-        nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+        nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
         nn.LeakyReLU(),
         nn.BatchNorm2d(n_channels),
-        nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding='same'),
+        nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
         nn.LeakyReLU(),
         nn.BatchNorm2d(n_channels),
         nn.Conv2d(n_channels, n_channels * 2, kernel_size=2, stride=2, padding=0),

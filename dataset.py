@@ -7,9 +7,11 @@ from torch.utils.data import Dataset
 from torch.utils.data import TensorDataset
 from os import path
 from glob import glob
+import bpdb
 
 DATADIR = path.abspath(path.join(path.dirname(__name__), "data_aggregation/data/"))
 import utils
+import string_utils
 
 
 class AsciiArtDataset(Dataset):
@@ -130,6 +132,7 @@ class AsciiArtDataset(Dataset):
         
         # Embeds characters
         if self.embedding_kind == "decompose":
+            content = content.replace("\n", "")
             embeddings = self.character_embeddings.embed(content)
             if self.should_min_max_transform:
                 # Min max scaling
@@ -137,6 +140,7 @@ class AsciiArtDataset(Dataset):
                     self.max_char_emb - self.min_char_emb
                 )
             # Makes embeddings image_res by image_res by channel
+            # Removes newlines as they aren't needed
             embeddings = embeddings.reshape(self.res,self.res,self.channels)
             # Makes embeddings nchannels by image_res by image_res
             embeddings = np.moveaxis(embeddings, 2,0)
@@ -168,7 +172,7 @@ class AsciiArtDataset(Dataset):
         return list(d)
 
     def __get_category_string_from_datapath(self, datapath: str) -> str:
-        return utils.remove_prefix(path.dirname(datapath), DATADIR)
+        return string_utils.remove_prefix(path.dirname(datapath), DATADIR)
 
     def decode(self, x) -> str:
         """Takes a matrix of character embeddings, returns a string with correct line breaks"""

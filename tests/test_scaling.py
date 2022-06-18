@@ -11,6 +11,7 @@ class TestScaling(unittest.TestCase):
     def test_inverse(self):
         ds = AsciiArtDataset(datapath=os.path.dirname(__file__) + "/../data_aggregation/data/", should_min_max_transform=True, res=36)
         before = ds[0][0]
+
         after = ds.character_embeddings.inverse_min_max_scaling(before)
         print(after)
         after = after.string_reshape(ds.res ** 2, 8)
