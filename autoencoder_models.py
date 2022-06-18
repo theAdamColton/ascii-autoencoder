@@ -151,7 +151,7 @@ class Decoder(nn.Module):
             nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
+            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
             nn.Sigmoid(),
         )
 
@@ -169,7 +169,7 @@ class VariationalEncoder(nn.Module):
         super().__init__()
         self.encoder = nn.Sequential(
         # Input batchsize x n_channels x 64 x 64
-        nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
+        nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
         nn.LeakyReLU(),
         nn.BatchNorm2d(n_channels),
         nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),

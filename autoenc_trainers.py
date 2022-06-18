@@ -20,6 +20,7 @@ class LightningVAE(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, label = batch
         x_recon, mu, log_var = self.autoencoder(x)
+        bpdb.set_trace()
         loss = self.loss(x, mu, log_var, x_recon)
         
         self.log("Training loss: ", loss)

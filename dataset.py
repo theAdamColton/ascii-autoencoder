@@ -140,7 +140,6 @@ class AsciiArtDataset(Dataset):
                     self.max_char_emb - self.min_char_emb
                 )
             # Makes embeddings image_res by image_res by channel
-            # Removes newlines as they aren't needed
             embeddings = embeddings.reshape(self.res,self.res,self.channels)
             # Makes embeddings nchannels by image_res by image_res
             embeddings = np.moveaxis(embeddings, 2,0)
