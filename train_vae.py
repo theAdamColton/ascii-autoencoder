@@ -61,6 +61,10 @@ def main():
     # Hardcoded one hot vector length
     n_channels = 95
     cuda = torch.cuda.is_available()
+    if cuda:
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
 
     dataset = AsciiArtDataset(res=64, embedding_kind='one-hot', validation_prop=args.validation_prop)
     dataloader = DataLoader(
@@ -71,16 +75,16 @@ def main():
             pin_memory=True,
     )
 
-    vae = VariationalAutoEncoder(n_channels, args.nz)
+    vae = VariationalAutoEncoder(n_channels, args.nz, device)
     vae_loss = VAELoss()
     lit_vae = LightningVAE(vae, vae_loss, lr=args.learning_rate)
+
+    lit_vae = lit_vae.to(torch.double)
 
     if cuda:
         lit_vae.cuda()
 
-    lit_vae = lit_vae.to(torch.double)
-
-    trainer = pl.Trainer(max_epochs=args.n_epochs)
+    trainer = pl.Trainer(max_epochs=args.n_epochs, accelerator='tpu', gpus=-1)
 
     trainer.fit(model=lit_vae, train_dataloader=dataloader)
 

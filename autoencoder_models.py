@@ -213,15 +213,14 @@ class VAELoss(nn.Module):
     """From: https://github.com/geyang/variational_autoencoder_pytorch"""
     def __init__(self):
         super(VAELoss, self).__init__()
-        self.bce_loss = nn.BCELoss()
-        self.bce_loss.size_average = False
+        self.ce_loss = nn.CrossEntropyLoss()
+        #self.ce_loss.size_average = False
 
-    # question: how is the loss function using the mu and variance?
     def forward(self, x, mu, log_var, recon_x):
         """gives the batch normalized Variational Error."""
 
         batch_size = x.size()[0]
-        BCE = self.bce_loss(recon_x, x)
+        CE = self.ce_loss(recon_x, x.argmax(1))
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -230,15 +229,16 @@ class VAELoss(nn.Module):
         KLD_element = mu.pow(2).add_(log_var.exp()).mul_(-1).add_(1).add_(log_var)
         KLD = torch.sum(KLD_element).mul_(-0.5)
 
-        return (BCE + KLD) / batch_size
+        return (CE + KLD) / batch_size
 
 
 class VariationalAutoEncoder(nn.Module):
     """From: https://github.com/geyang/variational_autoencoder_pytorch"""
-    def __init__(self, n_channels, z_dim):
+    def __init__(self, n_channels, z_dim, device):
         super(VariationalAutoEncoder, self).__init__()
         self.encoder = VariationalEncoder(n_channels, z_dim)
         self.decoder = Decoder(n_channels, z_dim)
+        self.device = device
 
     def forward(self, x):
         """Returns recon_x, mu, log_var"""
@@ -256,6 +256,7 @@ class VariationalAutoEncoder(nn.Module):
         """
         vector_size = log_var.size()
         eps = Variable(torch.FloatTensor(vector_size).normal_())
+        eps = eps.to(self.device)
         std = log_var.mul(0.5).exp_()
         return eps.mul(std).add_(mu)
 

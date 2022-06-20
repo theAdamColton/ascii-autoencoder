@@ -110,7 +110,7 @@ def squareized_string_to_one_hot(s: str, x: int) -> np.ndarray:
     embedded = np.moveaxis(embedded, 2,0)
     return embedded
 
-def one_hot_embedded_matrix_to_string(a: torch.Tensor) -> str:
+def one_hot_embedded_matrix_to_string(a) -> str:
     """Takes a 95 by x by x matrix a of one hot character embeddings and
     returns a string"""
     res = a.shape[1]
@@ -118,6 +118,8 @@ def one_hot_embedded_matrix_to_string(a: torch.Tensor) -> str:
     a = a.moveaxis(0, 2)
     # Flattens
     a = a.reshape(res**2, 95)
+    if type(a) == torch.Tensor:
+        a = a.cpu().numpy()
     flat_s = one_hot_encoding.fuzzy_one_hot_to_str(a)
     squareized_s = string_reshape(flat_s, res)
     return squareized_s

@@ -40,8 +40,6 @@ class LightningVAE(pl.LightningModule):
                 print(side_by_side)
                 print(label)
 
-
-
         return loss
 
     def configure_optimizers(self):
