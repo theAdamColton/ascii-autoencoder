@@ -34,7 +34,7 @@ class AsciiArtDataset(Dataset):
         self,
         res: int = 36,
         datapath=DATADIR,
-        embedding_kind="decompose",
+        embedding_kind="one-hot",
         should_min_max_transform=False,
         channels=8,
         max_samples=None,
@@ -175,7 +175,6 @@ class AsciiArtDataset(Dataset):
 
     def decode(self, x) -> str:
         """Takes a matrix of character embeddings, returns a string with correct line breaks"""
-
         if not type(x) == np.ndarray:
             x = x.cpu()
             x = np.array(x)
