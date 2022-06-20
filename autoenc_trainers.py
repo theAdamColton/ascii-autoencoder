@@ -13,6 +13,7 @@ class LightningVAE(pl.LightningModule):
     """
     def __init__(self, autoencoder: VariationalAutoEncoder, loss: VAELoss, lr: float, print_every=10):
         super().__init__()
+        self.save_hyperparameters()
         self.autoencoder = autoencoder
         self.loss = loss
         self.lr = lr
@@ -23,9 +24,9 @@ class LightningVAE(pl.LightningModule):
         x_recon, mu, log_var = self.autoencoder(x)
         loss = self.loss(x, mu, log_var, x_recon)
         
-        self.log("Training loss: ", loss)
+        #self.log("Training loss: ", loss)
 
-        if self.current_epoch % self.print_every == 0:
+        if batch_idx % self.print_every == 0:
             with torch.no_grad():
                 self.autoencoder.eval()
 

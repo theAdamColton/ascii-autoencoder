@@ -213,8 +213,14 @@ class VAELoss(nn.Module):
     """From: https://github.com/geyang/variational_autoencoder_pytorch"""
     def __init__(self):
         super(VAELoss, self).__init__()
-        self.ce_loss = nn.CrossEntropyLoss()
-        #self.ce_loss.size_average = False
+        # weights for ce loss
+        # space_loss_deemphasis of greater than one makes the space characters have less wieght in the loss calculation. A space_loss_deemphasis of less than one makes them have more wieght.
+        space_loss_deemphasis=10.0
+        char_weights = torch.zeros(95)
+        # Less emphasis on space characters
+        char_weights[0] = 1 / 95 / space_loss_deemphasis
+        char_weights[1:] = (1 - char_weights[0]) / 94
+        self.ce_loss = nn.CrossEntropyLoss(weight=char_weights)
 
     def forward(self, x, mu, log_var, recon_x):
         """gives the batch normalized Variational Error."""

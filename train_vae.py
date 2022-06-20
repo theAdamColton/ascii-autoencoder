@@ -75,16 +75,23 @@ def main():
             pin_memory=True,
     )
 
-    vae = VariationalAutoEncoder(n_channels, args.nz, device)
-    vae_loss = VAELoss()
-    lit_vae = LightningVAE(vae, vae_loss, lr=args.learning_rate)
+    if not args.load:
+        vae = VariationalAutoEncoder(n_channels, args.nz, device)
+        vae_loss = VAELoss()
+        lit_vae = LightningVAE(vae, vae_loss, lr=args.learning_rate, print_every=args.print_every)
 
-    lit_vae = lit_vae.to(torch.double)
+        lit_vae = lit_vae.to(torch.double)
+    else:
+        lit_vae = LightningVAE.load_from_checkpoint(args.load)
+        print("Resuming training")
 
     if cuda:
         lit_vae.cuda()
 
-    trainer = pl.Trainer(max_epochs=args.n_epochs, accelerator='tpu', gpus=-1)
+    # The 'period' argument changes for different versions of pytorch lightning, in newer versions it is 'every_n_epochs'
+    #checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath="vae_models/", period = args.save_every, save_last=True)
+
+    trainer = pl.Trainer(max_epochs=args.n_epochs, accelerator='tpu', gpus=-1, default_root_dir="vae_checkpoint/")
 
     trainer.fit(model=lit_vae, train_dataloader=dataloader)
 
