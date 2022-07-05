@@ -48,6 +48,10 @@ def get_training_args():
     )
     parser.add_argument("-l", "--load", dest="load", help="load models from directory")
 
+    # Hyperparams
+    parser.add_argument("--anneal-rate", dest="anneal_rate", default=3e-5, type=float)
+    parser.add_argument("--temp-min", dest="temp_min", default=0.5, type=float)
+
     parser.add_argument("--validation-prop", dest="validation_prop", default=None, type=float)
     #parser.add_argument("--nz", dest="nz", help="z dimension", type=int, default=128)
 

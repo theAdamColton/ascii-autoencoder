@@ -5,6 +5,7 @@ import numpy as np
 from scipy import signal
 import torch
 import torch.nn.functional as F
+import bpdb
 
 
 
@@ -66,9 +67,8 @@ def gumbel_softmax(logits, temperature, latent_dim, categorical_dim, hard=False,
     return: [*, n_class] an one-hot vector along dimension <dim>
     """
     y = gumbel_softmax_sample(logits, temperature, dim=dim)
-    
+
     if not hard:
-        #return y.view(-1, latent_dim * categorical_dim)
         return y
 
     shape = y.size()
@@ -78,6 +78,5 @@ def gumbel_softmax(logits, temperature, latent_dim, categorical_dim, hard=False,
     y_hard = y_hard.view(*shape)
     # Set gradients w.r.t. y_hard gradients w.r.t. y
     y_hard = (y_hard - y).detach() + y
-    #return y_hard.view(-1, latent_dim * categorical_dim)
     return y_hard
 

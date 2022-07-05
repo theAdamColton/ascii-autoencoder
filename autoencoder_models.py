@@ -77,7 +77,7 @@ class VanillaAutoenc(nn.Module):
 
         if categorical:
             # Applies softmax to every channel
-            # This only makes sense if using one hot encoding
+            # This makes sense if using one hot encoding
             decoder_layers.append(nn.Softmax(dim=1))
         else:
             decoder_layers.append(nn.Sigmoid)
@@ -221,25 +221,24 @@ class VAELoss(nn.Module):
 
         # weights for ce loss
         # space_loss_deemphasis of greater than one makes the space characters have less wieght in the loss calculation. A space_loss_deemphasis of less than one makes them have more wieght.
-        space_loss_deemphasis=20.0
+        space_loss_deemphasis=4.0
         char_weights = torch.zeros(95)
-        # Less emphasis on space characters
+        # emphasis on space characters
         char_weights[0] = 1 / 95 / space_loss_deemphasis
         char_weights[1:] = (1 - char_weights[0]) / 94
 
         #self.loss_fn = nn.CosineEmbeddingLoss(reduction='none')
-        self.loss_fn = nn.CrossEntropyLoss(weight=char_weights)
+        self.ce_loss = nn.CrossEntropyLoss(weight=char_weights)
 
     def forward(self, x, mu, log_var, recon_x):
         """gives the batch normalized Variational Error"""
 
         batch_size = x.size()[0]
 
-        # TODO When target is 1, the loss basically becomes 1- cosine similarity loss
-        target = torch.Tensor([1]).to(torch.device('cuda'))
+        #target = torch.Tensor([1]).to(torch.device('cuda'))
         #recon_loss = self.loss_fn(recon_x, x, target).mean()
-        bpdb.set_trace()
-        recon_loss = self.loss_fn(recon_x, x)
+
+        recon_loss = self.ce_loss(recon_x, x.argmax(1))
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -267,12 +266,15 @@ class OneHotVariationalAutoEncoder(nn.Module):
         self.decoder = Decoder(n_channels, z_dim)
         self.device = device
 
-    def forward(self, x):
+    def forward(self, x, temperature=0.5):
         """Returns recon_x_gumbel, mu, log_var"""
         mu, log_var = self.encoder(x)
         z = self.reparameterize(mu, log_var)
         recon_x = self.decoder(z)
-        recon_x_gumbel = utils.gumbel_softmax(recon_x, 1.0, 128, 95, dim=0)
+        log_recon_x = torch.log(recon_x)
+        recon_x_gumbel = nn.functional.gumbel_softmax(log_recon_x, tau=temperature, hard=True, dim=1)
+        #recon_x_gumbel = utils.gumbel_softmax(recon_x, temperature, 128, 95, dim=1)
+        bpdb.set_trace()
         return recon_x_gumbel, mu, log_var
 
     def reparameterize(self, mu, log_var):
