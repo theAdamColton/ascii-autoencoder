@@ -220,13 +220,16 @@ class VAELoss(nn.Module):
         # Less emphasis on space characters
         char_weights[0] = 1 / 95 / space_loss_deemphasis
         char_weights[1:] = (1 - char_weights[0]) / 94
-        self.ce_loss = nn.CrossEntropyLoss(weight=char_weights)
+        self.loss_fn = nn.CosineEmbeddingLoss(reduction='none')
 
     def forward(self, x, mu, log_var, recon_x):
         """gives the batch normalized Variational Error."""
 
         batch_size = x.size()[0]
-        CE = self.ce_loss(recon_x, x.argmax(1))
+
+        # TODO When target is 1, the loss basically becomes 1- cosine similarity loss
+        target = torch.Tensor([1]).to(torch.device('cuda'))
+        recon_loss = self.loss_fn(recon_x, x, target).mean()
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -235,7 +238,7 @@ class VAELoss(nn.Module):
         KLD_element = mu.pow(2).add_(log_var.exp()).mul_(-1).add_(1).add_(log_var)
         KLD = torch.sum(KLD_element).mul_(-0.5)
 
-        return (CE + KLD) / batch_size
+        return (recon_loss + KLD) / batch_size
 
 
 class VariationalAutoEncoder(nn.Module):
