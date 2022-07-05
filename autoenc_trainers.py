@@ -2,16 +2,16 @@ import torch
 import pytorch_lightning as pl
 import bpdb
 
-from autoencoder_models import VariationalAutoEncoder, VAELoss
+from autoencoder_models import OneHotVariationalAutoEncoder, VAELoss
 import ascii_util
 
-class LightningVAE(pl.LightningModule):
+class LightningOneHotVAE(pl.LightningModule):
     """
     Lightning VAE Trainer
 
         only works for ascii art represented by one hot encodings
     """
-    def __init__(self, autoencoder: VariationalAutoEncoder, loss: VAELoss, lr: float, print_every=10):
+    def __init__(self, autoencoder: OneHotVariationalAutoEncoder, loss: VAELoss, lr: float, print_every=10):
         super().__init__()
         self.save_hyperparameters()
         self.autoencoder = autoencoder

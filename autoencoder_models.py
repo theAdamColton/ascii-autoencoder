@@ -5,6 +5,7 @@ from torch.autograd import Variable
 import bpdb
 
 from generic_nn_modules import Flatten, UnFlatten, GenericUnflatten, ArgMax 
+import utils
 
 
 class VanillaAutoenc(nn.Module):
@@ -163,7 +164,7 @@ class VariationalEncoder(nn.Module):
     """
     Variational encoder, with a single output linear layer, and then another
     single linear layer producing either mu or sigma^2. This encoder works only
-    with 64x64 input image resolution.
+    with 64x64 input image resolution and a 128 latent dimension.
     """
     def __init__(self, n_channels, z_dim):
         super().__init__()
@@ -210,26 +211,35 @@ class VariationalEncoder(nn.Module):
 
 
 class VAELoss(nn.Module):
-    """From: https://github.com/geyang/variational_autoencoder_pytorch"""
+    """
+    Variational loss for autoencoder. 
+    Recreation loss is done by cosine similarity loss
+
+    From: https://github.com/geyang/variational_autoencoder_pytorch"""
     def __init__(self):
         super(VAELoss, self).__init__()
+
         # weights for ce loss
         # space_loss_deemphasis of greater than one makes the space characters have less wieght in the loss calculation. A space_loss_deemphasis of less than one makes them have more wieght.
-        space_loss_deemphasis=10.0
+        space_loss_deemphasis=20.0
         char_weights = torch.zeros(95)
         # Less emphasis on space characters
         char_weights[0] = 1 / 95 / space_loss_deemphasis
         char_weights[1:] = (1 - char_weights[0]) / 94
-        self.loss_fn = nn.CosineEmbeddingLoss(reduction='none')
+
+        #self.loss_fn = nn.CosineEmbeddingLoss(reduction='none')
+        self.loss_fn = nn.CrossEntropyLoss(weight=char_weights)
 
     def forward(self, x, mu, log_var, recon_x):
-        """gives the batch normalized Variational Error."""
+        """gives the batch normalized Variational Error"""
 
         batch_size = x.size()[0]
 
         # TODO When target is 1, the loss basically becomes 1- cosine similarity loss
         target = torch.Tensor([1]).to(torch.device('cuda'))
-        recon_loss = self.loss_fn(recon_x, x, target).mean()
+        #recon_loss = self.loss_fn(recon_x, x, target).mean()
+        bpdb.set_trace()
+        recon_loss = self.loss_fn(recon_x, x)
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -241,19 +251,29 @@ class VAELoss(nn.Module):
         return (recon_loss + KLD) / batch_size
 
 
-class VariationalAutoEncoder(nn.Module):
-    """From: https://github.com/geyang/variational_autoencoder_pytorch"""
+class OneHotVariationalAutoEncoder(nn.Module):
+    """
+    VariationalAutoEncoder for one hot encoding along n_channels.
+    z_dim was tested at 128
+
+    Does the gumbel trick to get the resulting output to approximate one hot encodings
+
+
+    Parts from: https://github.com/geyang/variational_autoencoder_pytorch
+    """
     def __init__(self, n_channels, z_dim, device):
-        super(VariationalAutoEncoder, self).__init__()
+        super(OneHotVariationalAutoEncoder, self).__init__()
         self.encoder = VariationalEncoder(n_channels, z_dim)
         self.decoder = Decoder(n_channels, z_dim)
         self.device = device
 
     def forward(self, x):
-        """Returns recon_x, mu, log_var"""
+        """Returns recon_x_gumbel, mu, log_var"""
         mu, log_var = self.encoder(x)
         z = self.reparameterize(mu, log_var)
-        return self.decoder(z), mu, log_var
+        recon_x = self.decoder(z)
+        recon_x_gumbel = utils.gumbel_softmax(recon_x, 1.0, 128, 95, dim=0)
+        return recon_x_gumbel, mu, log_var
 
     def reparameterize(self, mu, log_var):
         """you generate a random distribution w.r.t. the mu and log_var from the embedding space.

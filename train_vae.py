@@ -5,8 +5,8 @@ import argparse
 
 from dataset import AsciiArtDataset
 import utils
-from autoencoder_models import VariationalAutoEncoder, VAELoss
-from autoenc_trainers import LightningVAE
+from autoencoder_models import OneHotVariationalAutoEncoder, VAELoss
+from autoenc_trainers import LightningOneHotVAE
 
 
 def get_training_args():
@@ -49,7 +49,7 @@ def get_training_args():
     parser.add_argument("-l", "--load", dest="load", help="load models from directory")
 
     parser.add_argument("--validation-prop", dest="validation_prop", default=None, type=float)
-    parser.add_argument("--nz", dest="nz", help="z dimension", type=int, required=True)
+    #parser.add_argument("--nz", dest="nz", help="z dimension", type=int, default=128)
 
     args = parser.parse_args()
     return args
@@ -60,6 +60,9 @@ def main():
 
     # Hardcoded one hot vector length
     n_channels = 95
+    # Hardcoded nz
+    nz = 128
+
     cuda = torch.cuda.is_available()
     if cuda:
         device = torch.device('cuda')
@@ -76,13 +79,13 @@ def main():
     )
 
     if not args.load:
-        vae = VariationalAutoEncoder(n_channels, args.nz, device)
+        vae = OneHotVariationalAutoEncoder(n_channels, nz, device)
         vae_loss = VAELoss()
-        lit_vae = LightningVAE(vae, vae_loss, lr=args.learning_rate, print_every=args.print_every)
+        lit_vae = LightningOneHotVAE(vae, vae_loss, lr=args.learning_rate, print_every=args.print_every)
 
         lit_vae = lit_vae.to(torch.double)
     else:
-        lit_vae = LightningVAE.load_from_checkpoint(args.load)
+        lit_vae = LightningOneHotVAE.load_from_checkpoint(args.load)
         print("Resuming training")
 
     if cuda:
