@@ -221,7 +221,7 @@ class VAELoss(nn.Module):
 
         # weights for ce loss
         # space_loss_deemphasis of greater than one makes the space characters have less wieght in the loss calculation. A space_loss_deemphasis of less than one makes them have more wieght.
-        space_loss_deemphasis=4.0
+        space_loss_deemphasis=1.0
         char_weights = torch.zeros(95)
         # emphasis on space characters
         char_weights[0] = 1 / 95 / space_loss_deemphasis
@@ -274,7 +274,6 @@ class OneHotVariationalAutoEncoder(nn.Module):
         log_recon_x = torch.log(recon_x)
         recon_x_gumbel = nn.functional.gumbel_softmax(log_recon_x, tau=temperature, hard=True, dim=1)
         #recon_x_gumbel = utils.gumbel_softmax(recon_x, temperature, 128, 95, dim=1)
-        bpdb.set_trace()
         return recon_x_gumbel, mu, log_var
 
     def reparameterize(self, mu, log_var):
