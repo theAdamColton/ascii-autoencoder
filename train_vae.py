@@ -62,16 +62,8 @@ def get_training_args():
 def main():
     args = get_training_args()
 
-    # Hardcoded one hot vector length
-    n_channels = 95
-    # Hardcoded nz
-    nz = 128
-
     cuda = torch.cuda.is_available()
-    if cuda:
-        device = torch.device('cuda')
-    else:
-        device = torch.device('cpu')
+    assert cuda
 
     dataset = AsciiArtDataset(res=64, embedding_kind='one-hot', validation_prop=args.validation_prop)
     dataloader = DataLoader(
@@ -83,17 +75,18 @@ def main():
     )
 
     if not args.load:
-        vae = OneHotVariationalAutoEncoder(n_channels, nz, device)
+        #vae = OneHotVariationalAutoEncoder(n_channels, nz, device)
         vae_loss = VAELoss()
-        lit_vae = LightningOneHotVAE(vae, vae_loss, lr=args.learning_rate, print_every=args.print_every)
+        vae = LightningOneHotVAE(vae_loss, lr=args.learning_rate, print_every=args.print_every)
+        vae = vae.to(torch.double)
+        vae.init_weights()
 
-        lit_vae = lit_vae.to(torch.double)
     else:
-        lit_vae = LightningOneHotVAE.load_from_checkpoint(args.load)
+        vae = LightningOneHotVAE.load_from_checkpoint(args.load)
         print("Resuming training")
 
     if cuda:
-        lit_vae.cuda()
+        vae.cuda()
 
     # The 'period' argument changes for different versions of pytorch lightning, in newer versions it is 'every_n_epochs'
     #checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath="vae_models/", period = args.save_every, save_last=True)

@@ -3,8 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import bpdb
+from argparse import ArgumentParser
 
-from generic_nn_modules import Flatten, UnFlatten, GenericUnflatten, ArgMax 
+from generic_nn_modules import Flatten, GenericUnflatten
 import utils
 
 
@@ -208,85 +209,3 @@ class VariationalEncoder(nn.Module):
         var = self.var_layer(p_x)
 
         return mu, var
-
-
-class VAELoss(nn.Module):
-    """
-    Variational loss for autoencoder. 
-    Recreation loss is done by cosine similarity loss
-
-    From: https://github.com/geyang/variational_autoencoder_pytorch"""
-    def __init__(self):
-        super(VAELoss, self).__init__()
-
-        # weights for ce loss
-        # space_loss_deemphasis of greater than one makes the space characters have less wieght in the loss calculation. A space_loss_deemphasis of less than one makes them have more wieght.
-        space_loss_deemphasis=1.0
-        char_weights = torch.zeros(95)
-        # emphasis on space characters
-        char_weights[0] = 1 / 95 / space_loss_deemphasis
-        char_weights[1:] = (1 - char_weights[0]) / 94
-
-        #self.loss_fn = nn.CosineEmbeddingLoss(reduction='none')
-        self.ce_loss = nn.CrossEntropyLoss(weight=char_weights)
-
-    def forward(self, x, mu, log_var, recon_x):
-        """gives the batch normalized Variational Error"""
-
-        batch_size = x.size()[0]
-
-        #target = torch.Tensor([1]).to(torch.device('cuda'))
-        #recon_loss = self.loss_fn(recon_x, x, target).mean()
-
-        recon_loss = self.ce_loss(recon_x, x.argmax(1))
-
-        # see Appendix B from VAE paper:
-        # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
-        # https://arxiv.org/abs/1312.6114
-        # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-        KLD_element = mu.pow(2).add_(log_var.exp()).mul_(-1).add_(1).add_(log_var)
-        KLD = torch.sum(KLD_element).mul_(-0.5)
-
-        return (recon_loss + KLD) / batch_size
-
-
-class OneHotVariationalAutoEncoder(nn.Module):
-    """
-    VariationalAutoEncoder for one hot encoding along n_channels.
-    z_dim was tested at 128
-
-    Does the gumbel trick to get the resulting output to approximate one hot encodings
-
-
-    Parts from: https://github.com/geyang/variational_autoencoder_pytorch
-    """
-    def __init__(self, n_channels, z_dim, device):
-        super(OneHotVariationalAutoEncoder, self).__init__()
-        self.encoder = VariationalEncoder(n_channels, z_dim)
-        self.decoder = Decoder(n_channels, z_dim)
-        self.device = device
-
-    def forward(self, x, temperature=0.5):
-        """Returns recon_x_gumbel, mu, log_var"""
-        mu, log_var = self.encoder(x)
-        z = self.reparameterize(mu, log_var)
-        recon_x = self.decoder(z)
-        log_recon_x = torch.log(recon_x)
-        recon_x_gumbel = nn.functional.gumbel_softmax(log_recon_x, tau=temperature, hard=True, dim=1)
-        #recon_x_gumbel = utils.gumbel_softmax(recon_x, temperature, 128, 95, dim=1)
-        return recon_x_gumbel, mu, log_var
-
-    def reparameterize(self, mu, log_var):
-        """you generate a random distribution w.r.t. the mu and log_var from the embedding space.
-        In order for the back-propagation to work, we need to be able to calculate the gradient. 
-        This reparameterization trick first generates a normal distribution, then shapes the distribution
-        with the mu and variance from the encoder.
-        
-        This way, we can can calculate the gradient parameterized by this particular random instance.
-        """
-        vector_size = log_var.size()
-        eps = Variable(torch.FloatTensor(vector_size).normal_())
-        eps = eps.to(self.device)
-        std = log_var.mul(0.5).exp_()
-        return eps.mul(std).add_(mu)
-
