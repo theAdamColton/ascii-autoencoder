@@ -120,7 +120,6 @@ class VanillaDisc(nn.Module):
         return self.main(input)
 
 
-
 class Decoder(nn.Module):
     """Generic decoder, with a single linear input layer, multiple
     ConvTranspose2d upscaling layers, and batch normalization. Works on a 64x64
@@ -153,7 +152,7 @@ class Decoder(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
             nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
-            nn.Sigmoid(),
+            nn.Softmax(dim=1)
         )
 
     def forward(self, z):
@@ -221,14 +220,16 @@ class VAELoss(nn.Module):
 
         # weights for ce loss
         # space_loss_deemphasis of greater than one makes the space characters have less wieght in the loss calculation. A space_loss_deemphasis of less than one makes them have more wieght.
-        space_loss_deemphasis=1.0
+        space_loss_deemphasis=10.0
         char_weights = torch.zeros(95)
         # emphasis on space characters
         char_weights[0] = 1 / 95 / space_loss_deemphasis
         char_weights[1:] = (1 - char_weights[0]) / 94
 
-        #self.loss_fn = nn.CosineEmbeddingLoss(reduction='none')
+        self.cos_e_loss = nn.CosineEmbeddingLoss(reduction='none')
+        self.mse_loss = nn.MSELoss()
         self.ce_loss = nn.CrossEntropyLoss(weight=char_weights)
+        self.bce_loss = nn.BCELoss()
 
     def forward(self, x, mu, log_var, recon_x):
         """gives the batch normalized Variational Error"""
@@ -236,18 +237,22 @@ class VAELoss(nn.Module):
         batch_size = x.size()[0]
 
         #target = torch.Tensor([1]).to(torch.device('cuda'))
-        #recon_loss = self.loss_fn(recon_x, x, target).mean()
+        #recon_loss = self.cos_e_loss(recon_x, x, target).mean()
+
+        #recon_loss = self.mse_loss(recon_x, x)
 
         recon_loss = self.ce_loss(recon_x, x.argmax(1))
+        #recon_loss = self.bce_loss(recon_x, x)
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
         # https://arxiv.org/abs/1312.6114
         # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-        KLD_element = mu.pow(2).add_(log_var.exp()).mul_(-1).add_(1).add_(log_var)
-        KLD = torch.sum(KLD_element).mul_(-0.5)
+        #KLD_element = mu.pow(2).add_(log_var.exp()).mul_(-1).add_(1).add_(log_var)
+        #KLD = torch.sum(KLD_element).mul_(-0.5)
 
-        return (recon_loss + KLD) / batch_size
+        #return (recon_loss + KLD) / batch_size
+        return recon_loss / batch_size
 
 
 class OneHotVariationalAutoEncoder(nn.Module):
@@ -266,15 +271,14 @@ class OneHotVariationalAutoEncoder(nn.Module):
         self.decoder = Decoder(n_channels, z_dim)
         self.device = device
 
-    def forward(self, x, temperature=0.5):
-        """Returns recon_x_gumbel, mu, log_var"""
+    def forward(self, x, temperature=1.0):
+        """Returns recon_x, mu, log_var"""
         mu, log_var = self.encoder(x)
         z = self.reparameterize(mu, log_var)
         recon_x = self.decoder(z)
-        log_recon_x = torch.log(recon_x)
-        recon_x_gumbel = nn.functional.gumbel_softmax(log_recon_x, tau=temperature, hard=True, dim=1)
-        #recon_x_gumbel = utils.gumbel_softmax(recon_x, temperature, 128, 95, dim=1)
-        return recon_x_gumbel, mu, log_var
+        #log_recon_x = torch.log(recon_x)
+        #recon_x_gumbel = nn.functional.gumbel_softmax(log_recon_x, tau=temperature, hard=False, dim=1)
+        return recon_x, mu, log_var
 
     def reparameterize(self, mu, log_var):
         """you generate a random distribution w.r.t. the mu and log_var from the embedding space.
