@@ -24,6 +24,8 @@ class LightningOneHotVAE(pl.LightningModule):
         x_recon, mu, log_var = self.autoencoder(x)
         loss = self.loss(x, mu, log_var, x_recon)
         
+        #self.log("Training loss: ", loss)
+
         if batch_idx % self.print_every == 0:
             with torch.no_grad():
                 self.autoencoder.eval()
@@ -38,7 +40,6 @@ class LightningOneHotVAE(pl.LightningModule):
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)
                 print(label)
-            self.autoencoder.train()
 
         return loss
 
