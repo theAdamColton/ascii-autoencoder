@@ -3,14 +3,14 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import bpdb
 
-from autoencoder_models import VariationalEncoder, Decoder, OneHotVAELoss
+from autoencoder_models import VariationalEncoder, Decoder
 import ascii_util
 
 class LightningOneHotVAE(pl.LightningModule):
     """
-    VariationalAutoEncoder for one hot encoding along n_channels.
+    VariationalAutoEncoder LightningModule for one hot encoding along n_channels.
     """
-    def __init__(self, lr: float=5E-5, print_every=10):
+    def __init__(self, lr= 5E-5, print_every=10):
         super().__init__()
         z_dim = 128
         n_channels = 95
@@ -20,6 +20,7 @@ class LightningOneHotVAE(pl.LightningModule):
         self.print_every = print_every
         self.encoder = VariationalEncoder(n_channels, z_dim)
         self.decoder = Decoder(n_channels, z_dim)
+        self.kl_coeff = 1.0
 
     def forward(self, x):
         """Returns recon_x, mu, log_var"""
@@ -48,7 +49,7 @@ class LightningOneHotVAE(pl.LightningModule):
 
     def step(self, batch, batch_idx):
         """Returns loss, logs"""
-        x, label = batch
+        x= batch[0]
         z, x_hat, p, q = self._run_step(x)
 
         recon_loss = F.cross_entropy(x_hat, x.argmax(dim=1), reduction="mean")
@@ -81,13 +82,14 @@ class LightningOneHotVAE(pl.LightningModule):
                 self.eval()
 
                 # Gets the first item of the batch
-                x = x[0]
+                x_0 = x[0]
+                x_0_unsqueezed = x_0.unsqueeze(0)
                 # Reconstructs the first item of the batch
-                x_recon = self.step(x[0].unsqueeze(0), batch_idx)
+                x_recon, _, _ = self.forward(x_0_unsqueezed)
                 label = label[0]
 
-                x_str = ascii_util.one_hot_embedded_matrix_to_string(x)
-                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon)
+                x_str = ascii_util.one_hot_embedded_matrix_to_string(x[0])
+                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon[0])
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)
                 print(label)
@@ -102,7 +104,7 @@ class LightningOneHotVAE(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), self.lr)
         return optimizer
 
-    def init_weights(self, std=1.0):
+    def init_weights(self, std=0.1):
         for _, param in self.named_parameters():
             param.data.normal_(mean=0.0, std=std)
 

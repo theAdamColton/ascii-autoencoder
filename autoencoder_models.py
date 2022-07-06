@@ -1,12 +1,8 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
 import bpdb
-from argparse import ArgumentParser
 
 from generic_nn_modules import Flatten, GenericUnflatten
-import utils
 
 
 class VanillaAutoenc(nn.Module):

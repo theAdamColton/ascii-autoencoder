@@ -4,8 +4,6 @@ import pytorch_lightning as pl
 import argparse
 
 from dataset import AsciiArtDataset
-import utils
-from autoencoder_models import OneHotVariationalAutoEncoder, VAELoss
 from autoenc_trainers import LightningOneHotVAE
 
 
@@ -76,8 +74,7 @@ def main():
 
     if not args.load:
         #vae = OneHotVariationalAutoEncoder(n_channels, nz, device)
-        vae_loss = VAELoss()
-        vae = LightningOneHotVAE(vae_loss, lr=args.learning_rate, print_every=args.print_every)
+        vae = LightningOneHotVAE(lr=args.learning_rate, print_every=args.print_every)
         vae = vae.to(torch.double)
         vae.init_weights()
 
@@ -93,7 +90,7 @@ def main():
 
     trainer = pl.Trainer(max_epochs=args.n_epochs, accelerator='tpu', gpus=-1, default_root_dir="vae_checkpoint/")
 
-    trainer.fit(model=lit_vae, train_dataloader=dataloader)
+    trainer.fit(model=vae, train_dataloader=dataloader)
 
 
 if __name__ in {"__main__", "__console__"}:
