@@ -2,9 +2,11 @@ import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import argparse
+import bpdb
 
 from dataset import AsciiArtDataset
 from autoenc_trainers import LightningOneHotVAE
+from character_frequencies import calculate_character_frequencies
 
 
 def get_training_args():
@@ -72,9 +74,11 @@ def main():
             pin_memory=True,
     )
 
+    char_weights = 1 / calculate_character_frequencies(dataset)
+
     if not args.load:
         #vae = OneHotVariationalAutoEncoder(n_channels, nz, device)
-        vae = LightningOneHotVAE(lr=args.learning_rate, print_every=args.print_every)
+        vae = LightningOneHotVAE(lr=args.learning_rate, print_every=args.print_every, char_weights = char_weights)
         vae.init_weights()
 
     else:
@@ -87,7 +91,7 @@ def main():
     # The 'period' argument changes for different versions of pytorch lightning, in newer versions it is 'every_n_epochs'
     #checkpoint_callback = pl.callbacks.ModelCheckpoint(dirpath="vae_models/", period = args.save_every, save_last=True)
 
-    trainer = pl.Trainer(max_epochs=args.n_epochs, accelerator='tpu', gpus=-1, default_root_dir="vae_checkpoint/")
+    trainer = pl.Trainer(max_epochs=args.n_epochs, accelerator='tpu', gpus=-1, default_root_dir=args.run_name + "checkpoint/")
 
     trainer.fit(model=vae, train_dataloader=dataloader)
 

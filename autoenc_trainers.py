@@ -10,7 +10,7 @@ class LightningOneHotVAE(pl.LightningModule):
     """
     VariationalAutoEncoder LightningModule for one hot encoding along n_channels.
     """
-    def __init__(self, lr= 5E-5, print_every=10):
+    def __init__(self, lr= 5E-5, print_every=10, char_weights=None):
         super().__init__()
         z_dim = 128
         n_channels = 95
@@ -22,13 +22,13 @@ class LightningOneHotVAE(pl.LightningModule):
         self.decoder = Decoder(n_channels, z_dim)
         self.kl_coeff = 1.0
 
+        self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
+
     def forward(self, x):
         """Returns recon_x, mu, log_var"""
         mu, log_var = self.encoder(x)
         p, q, z = self.sample(mu, log_var)
         recon_x = self.decoder(z)
-        #recon_x_gumbel = nn.functional.gumbel_softmax(log_recon_x, tau=temperature, hard=True, dim=1)
-        #recon_x_gumbel = utils.gumbel_softmax(recon_x, temperature, 128, 95, dim=1)
         return recon_x, mu, log_var
 
     def _run_step(self, x):
@@ -51,7 +51,7 @@ class LightningOneHotVAE(pl.LightningModule):
         """Returns loss, logs"""
         z, x_hat, p, q = self._run_step(x)
 
-        recon_loss = F.cross_entropy(x_hat, x.argmax(dim=1), reduction="mean")
+        recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
 
         kl = torch.distributions.kl_divergence(q, p)
         kl = kl.mean()
@@ -63,7 +63,7 @@ class LightningOneHotVAE(pl.LightningModule):
             "kl": kl,
             "loss": loss,
         }
-
+        
         return loss, logs
 
     def on_epoch_start(self):
@@ -99,7 +99,7 @@ class LightningOneHotVAE(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), self.lr)
         return optimizer
 
-    def init_weights(self, std=0.2):
+    def init_weights(self, std=0.15):
         """If std is set above ~0.3, there are overflow errors on the first iteration"""
         for _, param in self.named_parameters():
             param.data.normal_(mean=0.0, std=std)

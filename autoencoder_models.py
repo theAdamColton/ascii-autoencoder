@@ -41,12 +41,12 @@ class Decoder(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
             nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
+            nn.Sigmoid(),
         )
 
     def forward(self, z):
         out = self.decoder(z)
-        out = F.gumbel_softmax(out, tau=1.0, hard=False, dim=1)
-        return self.decoder(z)
+        return out
 
 
 class VariationalEncoder(nn.Module):
