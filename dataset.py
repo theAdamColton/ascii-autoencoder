@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import Dataset
 from torch.utils.data import TensorDataset
 from os import path
+import random
 from glob import glob
 import bpdb
 
@@ -119,6 +120,10 @@ class AsciiArtDataset(Dataset):
 
     def get_validation_item(self, index):
         filename = self.validation_ascii_files[index]
+        return self.__getitem_from_filename__(filename)
+
+    def get_random_training_item(self):
+        filename = self.asciifiles[random.randint(0, len(self.asciifiles) - 1)]
         return self.__getitem_from_filename__(filename)
 
     def get_validation_length(self):

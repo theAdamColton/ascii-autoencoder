@@ -66,29 +66,30 @@ class LightningOneHotVAE(pl.LightningModule):
 
         return loss, logs
 
-    def training_step(self, batch, batch_idx):
-        """Returns loss"""
-        x, label = batch
-        loss, logs = self.step(x, batch_idx)
-        
-        if batch_idx % self.print_every == 0:
+    def on_epoch_start(self):
+        if self.current_epoch % self.print_every==0:
+            x, label = self.train_dataloader().dataset.get_random_training_item()
+            x = torch.Tensor(x)
+            x = x.to(self.device)
+
             with torch.no_grad():
                 self.eval()
 
-                # Gets the first item of the batch
-                x_0 = x[0]
-                x_0_unsqueezed = x_0.unsqueeze(0)
-                # Reconstructs the first item of the batch
-                x_recon, _, _ = self.forward(x_0_unsqueezed)
-                label = label[0]
-
-                x_str = ascii_util.one_hot_embedded_matrix_to_string(x[0])
-                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon[0])
+                # Reconstructs the item
+                x_recon, _, _ = self.forward(x.unsqueeze(0))
+                x_recon = x_recon.squeeze(0)
+                x_str = ascii_util.one_hot_embedded_matrix_to_string(x)
+                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon)
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)
                 print(label)
 
             self.train()
+
+    def training_step(self, batch, batch_idx):
+        """Returns loss"""
+        x, label = batch
+        loss, logs = self.step(x, batch_idx)
 
         self.log_dict({f"train_{k}": v for k, v in logs.items()}, on_step=True, on_epoch=False, prog_bar=True)
 
