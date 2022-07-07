@@ -75,7 +75,6 @@ def main():
     if not args.load:
         #vae = OneHotVariationalAutoEncoder(n_channels, nz, device)
         vae = LightningOneHotVAE(lr=args.learning_rate, print_every=args.print_every)
-        vae = vae.to(torch.double)
         vae.init_weights()
 
     else:

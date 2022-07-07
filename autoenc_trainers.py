@@ -47,9 +47,8 @@ class LightningOneHotVAE(pl.LightningModule):
         z = q.rsample()
         return p, q, z
 
-    def step(self, batch, batch_idx):
+    def step(self, x, batch_idx):
         """Returns loss, logs"""
-        x= batch[0]
         z, x_hat, p, q = self._run_step(x)
 
         recon_loss = F.cross_entropy(x_hat, x.argmax(dim=1), reduction="mean")
@@ -67,15 +66,10 @@ class LightningOneHotVAE(pl.LightningModule):
 
         return loss, logs
 
-#    def validation_step(self, batch, batch_idx):
-#        loss, logs = self.step(batch, batch_idx)
-#        self.log_dict({f"val_{k}": v for k, v in logs.items()})
-#        return loss
-
     def training_step(self, batch, batch_idx):
         """Returns loss"""
         x, label = batch
-        loss, logs = self.step(batch, batch_idx)
+        loss, logs = self.step(x, batch_idx)
         
         if batch_idx % self.print_every == 0:
             with torch.no_grad():
@@ -96,7 +90,7 @@ class LightningOneHotVAE(pl.LightningModule):
 
             self.train()
 
-        self.log_dict({f"train_{k}": v for k, v in logs.items()}, on_step=True, on_epoch=False)
+        self.log_dict({f"train_{k}": v for k, v in logs.items()}, on_step=True, on_epoch=False, prog_bar=True)
 
         return loss
 
@@ -104,8 +98,8 @@ class LightningOneHotVAE(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), self.lr)
         return optimizer
 
-    def init_weights(self, std=0.1):
+    def init_weights(self, std=0.2):
+        """If std is set above ~0.3, there are overflow errors on the first iteration"""
         for _, param in self.named_parameters():
             param.data.normal_(mean=0.0, std=std)
-
 

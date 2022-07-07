@@ -108,6 +108,7 @@ def squareized_string_to_one_hot(s: str, x: int) -> np.ndarray:
     embedded = embedded.reshape(x, x, 95)
     # Makes embeddings nchannels by image_res by image_res
     embedded = np.moveaxis(embedded, 2,0)
+    embedded=embedded.astype(np.float32)
     return embedded
 
 def one_hot_embedded_matrix_to_string(a) -> str:
