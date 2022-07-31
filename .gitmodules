@@ -1,0 +1,9 @@
+[submodule "ascii-dataset"]
+	path = ascii-dataset
+	url = git@github.com:theAdamColton/ascii-dataset.git
+[submodule "neural-font-renderer"]
+	path = neural-font-renderer
+	url = git@github.com:theAdamColton/neural-font-renderer.git
+[submodule "python-pytorch-font-renderer"]
+	path = python-pytorch-font-renderer
+	url = git@github.com:theAdamColton/python-pytorch-font-renderer.git

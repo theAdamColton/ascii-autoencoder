@@ -1,0 +1,133 @@
+from pytorch_lightning.callbacks.swa import StochasticWeightAveraging
+import torch
+from torch.utils.data import DataLoader
+import pytorch_lightning as pl
+import argparse
+import bpdb
+from os import path
+import sys
+
+
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
+from dataset import AsciiArtDataset
+
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./neural-font-renderer/"))
+from lightning_model import PLNeuralRenderer
+
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
+from font_renderer import FontRenderer
+
+from autoenc_trainers import LightningOneHotVAE
+
+
+def get_training_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--should-discrete-renderer",
+        dest="should_discrete_renderer",
+        action="store true",
+        default=False,
+    )
+    parser.add_argument("--neural-renderer-path", dest="neural_renderer_path")
+    parser.add_argument(
+        "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1
+    )
+    parser.add_argument("--print-every", "-p", dest="print_every", default=10, type=int)
+    parser.add_argument(
+        "--run-name",
+        dest="run_name",
+        default="vae",
+    )
+    parser.add_argument(
+        "--n-workers",
+        dest="n_workers",
+        type=int,
+        default=0,
+        help="Number of dataset workers",
+    )
+    parser.add_argument(
+        "--learning-rate", dest="learning_rate", default=5e-5, type=float
+    )
+    parser.add_argument(
+        "-b",
+        "--batch_size",
+        dest="batch_size",
+        default=64,
+        type=int,
+        help="Batch size",
+    )
+    parser.add_argument(
+        "-n",
+        "--n_epochs",
+        dest="n_epochs",
+        default=200,
+        type=int,
+        help="Number of epochs",
+    )
+    parser.add_argument("-l", "--load", dest="load", help="load models from directory")
+    parser.add_argument(
+        "--validation-prop", dest="validation_prop", default=None, type=float
+    )
+
+    args = parser.parse_args()
+    assert not args.should_discrete_renderer and args.neural_renderer_path
+    return args
+
+
+def main():
+    args = get_training_args()
+
+    dataset = AsciiArtDataset(
+        res=64, embedding_kind="one-hot", validation_prop=args.validation_prop
+    )
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.n_workers,
+        pin_memory=True,
+    )
+
+    if args.neural_renderer_path:
+        font_renderer = PLNeuralRenderer.load_from_checkpoint(args.neural_renderer_path)
+        font_renderer.eval()
+    else:
+        font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
+
+    if not args.load:
+        character_frequencies = dataset.calculate_character_counts()
+        char_weights = 1.0 / (character_frequencies + 1)
+        char_weights = char_weights**0.5
+        vae = LightningOneHotVAE(
+            lr=args.learning_rate,
+            print_every=args.print_every,
+            char_weights=char_weights,
+            neural_renderer=font_renderer,
+            ce_recon_loss_scale=args.ce_recon_loss_scale,
+        )
+        vae.init_weights()
+
+    else:
+        vae = LightningOneHotVAE.load_from_checkpoint(args.load)
+        vae.font_renderer = font_renderer
+        vae.lr = args.learning_rate
+        vae.print_every = args.print_every
+        print("Resuming training")
+
+    trainer = pl.Trainer(
+        max_epochs=args.n_epochs,
+        accelerator="gpu",
+        gpus=-1,
+        default_root_dir=args.run_name + "checkpoint/",
+        callbacks=[StochasticWeightAveraging()],
+    )
+
+    trainer.fit(model=vae, train_dataloader=dataloader)
+
+
+if __name__ in {"__main__", "__console__"}:
+    main()

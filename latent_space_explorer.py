@@ -37,19 +37,17 @@ def get_args():
         ),
     )
     parser.add_argument(
-            "--z-dim",
-            default=256,
-            dest="z_dim",
-            type=int,
-            )
+        "--z-dim",
+        default=256,
+        dest="z_dim",
+        type=int,
+    )
 
     return parser.parse_args()
 
 
 def main(stdscr, args):
-    dataset = AsciiArtDataset(
-        res=64, embedding_kind="one-hot"
-    )
+    dataset = AsciiArtDataset(res=64, embedding_kind="one-hot")
     z_dim = args.z_dim
 
     cuda = torch.cuda.is_available()
@@ -62,12 +60,13 @@ def main(stdscr, args):
 
     autoenc = VanillaAutoenc(n_channels=95, z_dim=z_dim)
     autoenc.load_state_dict(
-        torch.load(path.join(args.model_dir, "autoencoder.pth.tar"), map_location=device)
+        torch.load(
+            path.join(args.model_dir, "autoencoder.pth.tar"), map_location=device
+        )
     )
     autoenc.eval()
     if cuda:
         autoenc.cuda()
-
 
     curses.noecho()
     curses.curs_set(False)
@@ -75,7 +74,6 @@ def main(stdscr, args):
 
     rows, cols = stdscr.getmaxyx()
     assert rows >= 64 and cols >= 64, "Terminal size needs to be at least 64x64"
-    
 
     next_frame = time.time() + 1 / args.frame_rate
     embedding2 = get_random(device, dataset, autoenc.encoder)
@@ -88,7 +86,7 @@ def main(stdscr, args):
             if time.time() > next_frame:
                 next_frame = time.time() + 1 / args.frame_rate
 
-            x_scaled = np.log10(x ** args.smooth_factor + 1) * 3.322
+            x_scaled = np.log10(x**args.smooth_factor + 1) * 3.322
             with torch.no_grad():
                 interp_embedding = x_scaled * embedding2 + (1 - x) * embedding1
                 decoded = autoenc.decoder(interp_embedding)
@@ -96,7 +94,6 @@ def main(stdscr, args):
 
             pad.addstr(0, 0, decoded_str)
             pad.refresh(0, 0, 0, 0, 64, 64)
-
 
         time.sleep(args.hold_length)
 

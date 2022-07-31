@@ -6,23 +6,34 @@ import bpdb
 from autoencoder_models import VariationalEncoder, Decoder
 import ascii_util
 
+
 class LightningOneHotVAE(pl.LightningModule):
     """
     VariationalAutoEncoder LightningModule for one hot encoding along n_channels.
     """
-    def __init__(self, lr= 5E-5, print_every=10, char_weights=None):
+
+    def __init__(
+        self,
+        font_renderer,
+        lr=5e-5,
+        print_every=10,
+        char_weights=None,
+        ce_recon_loss_scale=0.1,
+    ):
         super().__init__()
         z_dim = 128
         n_channels = 95
 
-        self.save_hyperparameters()
         self.lr = lr
         self.print_every = print_every
         self.encoder = VariationalEncoder(n_channels, z_dim)
         self.decoder = Decoder(n_channels, z_dim)
         self.kl_coeff = 1.0
+        self.font_renderer = font_renderer
+        self.ce_recon_loss_scale = ce_recon_loss_scale
 
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
+        self.save_hyperparameters()
 
     def forward(self, x):
         """Returns recon_x, mu, log_var"""
@@ -51,7 +62,16 @@ class LightningOneHotVAE(pl.LightningModule):
         """Returns loss, logs"""
         z, x_hat, p, q = self._run_step(x)
 
-        recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
+        # CE Loss between original categorical vectors and reconstructed vectors
+        ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
+        ce_recon_loss *= self.ce_recon_loss_scale
+
+        # Image reconstruction loss
+        base_image = self.font_renderer.render(x)
+        recon_image = self.font_renderer.render(x_hat)
+        image_recon_loss = F.mse_loss(base_image, recon_image)
+
+        recon_loss = image_recon_loss + ce_recon_loss
 
         kl = torch.distributions.kl_divergence(q, p)
         kl = kl.mean()
@@ -59,15 +79,17 @@ class LightningOneHotVAE(pl.LightningModule):
 
         loss = kl + recon_loss
         logs = {
+            "image_loss": image_recon_loss,
+            "ce_loss": ce_recon_loss,
             "recon_loss": recon_loss,
             "kl": kl,
             "loss": loss,
         }
-        
+
         return loss, logs
 
     def on_epoch_start(self):
-        if self.current_epoch % self.print_every==0:
+        if self.current_epoch % self.print_every == 0:
             x, label = self.train_dataloader().dataset.get_random_training_item()
             x = torch.Tensor(x)
             x = x.to(self.device)
@@ -91,8 +113,24 @@ class LightningOneHotVAE(pl.LightningModule):
         x, label = batch
         loss, logs = self.step(x, batch_idx)
 
-        self.log_dict({f"train_{k}": v for k, v in logs.items()}, on_step=True, on_epoch=False, prog_bar=True)
+        self.log_dict(
+            {f"train_{k}": v for k, v in logs.items()},
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True,
+        )
 
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, label = batch
+        loss, logs = self.step(x, batch_idx)
+        self.log_dict(
+            {f"validation_{k}": v for k, v in logs.items()},
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True,
+        )
         return loss
 
     def configure_optimizers(self):
@@ -103,4 +141,3 @@ class LightningOneHotVAE(pl.LightningModule):
         """If std is set above ~0.3, there are overflow errors on the first iteration"""
         for _, param in self.named_parameters():
             param.data.normal_(mean=0.0, std=std)
-
