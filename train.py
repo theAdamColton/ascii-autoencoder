@@ -1,4 +1,4 @@
-from pytorch_lightning.callbacks.swa import StochasticWeightAveraging
+from pytorch_lightning.callbacks import StochasticWeightAveraging
 import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -29,12 +29,14 @@ def get_training_args():
     parser.add_argument(
         "--should-discrete-renderer",
         dest="should_discrete_renderer",
-        action="store true",
+        action="store_true",
         default=False,
     )
-    parser.add_argument("--neural-renderer-path", dest="neural_renderer_path")
     parser.add_argument(
-        "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1
+        "--neural-renderer-path", dest="neural_renderer_path", default=None
+    )
+    parser.add_argument(
+        "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1, type=float
     )
     parser.add_argument("--print-every", "-p", dest="print_every", default=10, type=int)
     parser.add_argument(
@@ -74,18 +76,28 @@ def get_training_args():
     )
 
     args = parser.parse_args()
-    assert not args.should_discrete_renderer and args.neural_renderer_path
+    assert (
+        args.should_discrete_renderer and not args.neural_renderer_path
+    ), "Must have exactly one of this arguments"
     return args
 
 
 def main():
     args = get_training_args()
 
-    dataset = AsciiArtDataset(
-        res=64, embedding_kind="one-hot", validation_prop=args.validation_prop
+    dataset = AsciiArtDataset(res=64, validation_prop=args.validation_prop)
+    validation_dataset = AsciiArtDataset(
+        res=64, validation_prop=args.validation_prop, is_validation_dataset=True
     )
     dataloader = DataLoader(
         dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.n_workers,
+        pin_memory=True,
+    )
+    val_dataloader = DataLoader(
+        validation_dataset,
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.n_workers,
@@ -103,10 +115,12 @@ def main():
         char_weights = 1.0 / (character_frequencies + 1)
         char_weights = char_weights**0.5
         vae = LightningOneHotVAE(
+            font_renderer,
+            dataloader,
+            val_dataloader=val_dataloader,
             lr=args.learning_rate,
             print_every=args.print_every,
             char_weights=char_weights,
-            neural_renderer=font_renderer,
             ce_recon_loss_scale=args.ce_recon_loss_scale,
         )
         vae.init_weights()
@@ -124,9 +138,10 @@ def main():
         gpus=-1,
         default_root_dir=args.run_name + "checkpoint/",
         callbacks=[StochasticWeightAveraging()],
+        auto_lr_find=True,
     )
 
-    trainer.fit(model=vae, train_dataloader=dataloader)
+    trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
 
 
 if __name__ in {"__main__", "__console__"}:

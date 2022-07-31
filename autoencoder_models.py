@@ -10,7 +10,7 @@ class Decoder(nn.Module):
     """Generic decoder, with a single linear input layer, multiple
     ConvTranspose2d upscaling layers, and batch normalization. Works on a 64x64
     image output size,
-    Outputs are scaled by the sigmoid function to be between zero and one.
+    Outputs are scaled by the softmax function to be have a sum of 1.
     """
 
     def __init__(self, n_channels, z_dim):
@@ -52,7 +52,7 @@ class Decoder(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(n_channels),
             nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
-            nn.Sigmoid(),
+            nn.Softmax(dim=1),
         )
 
     def forward(self, z):

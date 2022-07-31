@@ -3,7 +3,13 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import bpdb
 
+import sys
+from os import path
+
 from autoencoder_models import VariationalEncoder, Decoder
+
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
 import ascii_util
 
 
@@ -15,6 +21,8 @@ class LightningOneHotVAE(pl.LightningModule):
     def __init__(
         self,
         font_renderer,
+        train_dataloader,
+        val_dataloader=None,
         lr=5e-5,
         print_every=10,
         char_weights=None,
@@ -34,6 +42,14 @@ class LightningOneHotVAE(pl.LightningModule):
 
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         self.save_hyperparameters()
+        self.train_dataloader_obj = train_dataloader
+        self.val_dataloader_obj = val_dataloader
+
+    def train_dataloader(self):
+        return self.train_dataloader_obj
+
+    def val_dataloader(self):
+        return self.val_dataloader_obj
 
     def forward(self, x):
         """Returns recon_x, mu, log_var"""
@@ -67,8 +83,8 @@ class LightningOneHotVAE(pl.LightningModule):
         ce_recon_loss *= self.ce_recon_loss_scale
 
         # Image reconstruction loss
-        base_image = self.font_renderer.render(x)
-        recon_image = self.font_renderer.render(x_hat)
+        base_image = self.font_renderer.render(x.argmax(dim=1))
+        recon_image = self.font_renderer.render(x_hat.argmax(dim=1))
         image_recon_loss = F.mse_loss(base_image, recon_image)
 
         recon_loss = image_recon_loss + ce_recon_loss
