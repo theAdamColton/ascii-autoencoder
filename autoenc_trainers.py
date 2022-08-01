@@ -85,7 +85,7 @@ class LightningOneHotVAE(pl.LightningModule):
         # Image reconstruction loss
         base_image = self.font_renderer.render(x.argmax(dim=1))
         recon_image = self.font_renderer.render(x_hat.argmax(dim=1))
-        image_recon_loss = F.mse_loss(base_image, recon_image)
+        image_recon_loss = F.mse_loss(base_image, recon_image) * 10
 
         recon_loss = image_recon_loss + ce_recon_loss
 

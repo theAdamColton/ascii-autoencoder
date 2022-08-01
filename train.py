@@ -74,6 +74,7 @@ def get_training_args():
     parser.add_argument(
         "--validation-prop", dest="validation_prop", default=None, type=float
     )
+    parser.add_argument("--char-weights-scaling", dest="char_weights_scaling", default=0.1, type=float, help="If this argument is close to zero, the char weights will be weighed more similarly.")
 
     args = parser.parse_args()
     assert (
@@ -113,7 +114,7 @@ def main():
     if not args.load:
         character_frequencies = dataset.calculate_character_counts()
         char_weights = 1.0 / (character_frequencies + 1)
-        char_weights = char_weights**0.5
+        char_weights = char_weights**args.char_weights_scaling
         vae = LightningOneHotVAE(
             font_renderer,
             dataloader,
