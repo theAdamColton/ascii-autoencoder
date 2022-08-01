@@ -27,6 +27,8 @@ class LightningOneHotVAE(pl.LightningModule):
         print_every=10,
         char_weights=None,
         ce_recon_loss_scale=0.1,
+        image_recon_loss_coeff=1.0,
+        kl_coeff=1.0,
     ):
         super().__init__()
         z_dim = 128
@@ -36,11 +38,13 @@ class LightningOneHotVAE(pl.LightningModule):
         self.print_every = print_every
         self.encoder = VariationalEncoder(n_channels, z_dim)
         self.decoder = Decoder(n_channels, z_dim)
-        self.kl_coeff = 1.0
+        self.kl_coeff = kl_coeff
         self.font_renderer = font_renderer
         self.ce_recon_loss_scale = ce_recon_loss_scale
+        self.image_recon_loss_coeff = image_recon_loss_coeff
 
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
+        self.bce_loss = torch.nn.BCELoss()
         self.save_hyperparameters()
         self.train_dataloader_obj = train_dataloader
         self.val_dataloader_obj = val_dataloader
@@ -79,13 +83,15 @@ class LightningOneHotVAE(pl.LightningModule):
         z, x_hat, p, q = self._run_step(x)
 
         # CE Loss between original categorical vectors and reconstructed vectors
-        ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
+        #ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
+        ce_recon_loss = self.bce_loss(x_hat, x)
         ce_recon_loss *= self.ce_recon_loss_scale
 
         # Image reconstruction loss
         base_image = self.font_renderer.render(x.argmax(dim=1))
         recon_image = self.font_renderer.render(x_hat.argmax(dim=1))
-        image_recon_loss = F.mse_loss(base_image, recon_image) * 10
+        image_recon_loss = F.mse_loss(base_image, recon_image)
+        image_recon_loss *= self.image_recon_loss_coeff
 
         recon_loss = image_recon_loss + ce_recon_loss
 
@@ -130,7 +136,7 @@ class LightningOneHotVAE(pl.LightningModule):
         loss, logs = self.step(x, batch_idx)
 
         self.log_dict(
-            {f"train_{k}": v for k, v in logs.items()},
+            {f"t_{k}": v for k, v in logs.items()},
             on_step=True,
             on_epoch=False,
             prog_bar=True,
@@ -142,7 +148,7 @@ class LightningOneHotVAE(pl.LightningModule):
         x, label = batch
         loss, logs = self.step(x, batch_idx)
         self.log_dict(
-            {f"validation_{k}": v for k, v in logs.items()},
+            {f"v_{k}": v for k, v in logs.items()},
             on_step=True,
             on_epoch=False,
             prog_bar=True,

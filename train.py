@@ -26,6 +26,7 @@ from autoenc_trainers import LightningOneHotVAE
 def get_training_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--kl-coeff", dest="kl_coeff", type=float, default=1.0)
     parser.add_argument(
         "--should-discrete-renderer",
         dest="should_discrete_renderer",
@@ -37,6 +38,9 @@ def get_training_args():
     )
     parser.add_argument(
         "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1, type=float
+    )
+    parser.add_argument(
+        "--image-recon-loss-coeff", dest="image_recon_loss_coeff", default=1.0, type=float
     )
     parser.add_argument("--print-every", "-p", dest="print_every", default=10, type=int)
     parser.add_argument(
@@ -138,6 +142,8 @@ def main():
             print_every=args.print_every,
             char_weights=char_weights,
             ce_recon_loss_scale=args.ce_recon_loss_scale,
+            image_recon_loss_coeff=args.image_recon_loss_coeff,
+            kl_coeff=args.kl_coeff,
         )
         vae.init_weights()
 
