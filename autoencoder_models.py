@@ -50,24 +50,17 @@ class Decoder(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
             GenericUnflatten(8, input_res, input_res),
-
             # Input: batch_size by 8 by 4 by 4
             BilinearConvUpsample(8, 8, kernel_size=kernel_size),
-
             # Input: batch_size by 8 by 8 by 8
             BilinearConvUpsample(8, 16, kernel_size=kernel_size),
-
             # Input: batch_size by 16 by 16 by 16
             BilinearConvUpsample(16, 32, kernel_size=kernel_size),
-
             # Input: batch_size by 32 by 32 by 32
             BilinearConvUpsample(32, 64, kernel_size=kernel_size),
-
             # Input: batch_size by 64 by 64 by 64
             nn.Conv2d(64, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
-
-            # Input: batch_size by 95 by 64 by 64
-            nn.Softmax(dim=1),
+            # Output: batch_size by 95 by 64 by 64
         )
 
     def forward(self, z):

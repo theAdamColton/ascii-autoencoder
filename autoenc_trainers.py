@@ -83,8 +83,7 @@ class LightningOneHotVAE(pl.LightningModule):
         z, x_hat, p, q = self._run_step(x)
 
         # CE Loss between original categorical vectors and reconstructed vectors
-        #ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
-        ce_recon_loss = self.bce_loss(x_hat, x)
+        ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
         ce_recon_loss *= self.ce_recon_loss_scale
 
         # Image reconstruction loss

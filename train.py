@@ -40,7 +40,10 @@ def get_training_args():
         "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1, type=float
     )
     parser.add_argument(
-        "--image-recon-loss-coeff", dest="image_recon_loss_coeff", default=1.0, type=float
+        "--image-recon-loss-coeff",
+        dest="image_recon_loss_coeff",
+        default=1.0,
+        type=float,
     )
     parser.add_argument("--print-every", "-p", dest="print_every", default=10, type=int)
     parser.add_argument(
@@ -134,6 +137,7 @@ def main():
             char_weights = char_weights**args.char_weights_scaling
         else:
             char_weights = torch.ones(95)
+
         vae = LightningOneHotVAE(
             font_renderer,
             dataloader,
