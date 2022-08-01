@@ -75,6 +75,12 @@ def get_training_args():
         "--validation-prop", dest="validation_prop", default=None, type=float
     )
     parser.add_argument(
+        "--should-char-weight",
+        dest="should_char_weight",
+        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
         "--char-weights-scaling",
         dest="char_weights_scaling",
         default=0.1,
@@ -118,9 +124,12 @@ def main():
         font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
 
     if not args.load:
-        character_frequencies = dataset.calculate_character_counts()
-        char_weights = 1.0 / (character_frequencies + 1)
-        char_weights = char_weights**args.char_weights_scaling
+        if args.should_char_weight:
+            character_frequencies = dataset.calculate_character_counts()
+            char_weights = 1.0 / (character_frequencies + 1)
+            char_weights = char_weights**args.char_weights_scaling
+        else:
+            char_weights = torch.ones(95)
         vae = LightningOneHotVAE(
             font_renderer,
             dataloader,
