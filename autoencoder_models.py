@@ -6,58 +6,97 @@ import bpdb
 from generic_nn_modules import Flatten, GenericUnflatten
 
 
+class BilinearConvUpsample(nn.Module):
+    """
+    Doubles the resolution
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size=5):
+        super().__init__()
+
+        # This sets the zero_pad so that the conv2d layer will have
+        # the same output width and height as its input
+        assert kernel_size % 2 == 1
+        zero_pad = kernel_size // 2
+
+        self.layers = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode="bilinear"),
+            nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride=1, padding=zero_pad
+            ),
+        )
+
+    def forward(self, x):
+        return self.layers.forward(x)
+
+
 class Decoder(nn.Module):
-    """Generic decoder, with a single linear input layer, multiple
-    ConvTranspose2d upscaling layers, and batch normalization. Works on a 64x64
+    """Decoder with a single linear input layer, multiple
+    BilinearConvUpsample upscaling layers, and batch normalization. Works on a 64x64
     image output size,
     Outputs are scaled by the softmax function to be have a sum of 1.
     """
 
-    def __init__(self, n_channels, z_dim):
+    def __init__(self, n_channels, z_dim, kernel_size=5):
+        assert z_dim == 128
         super().__init__()
+        input_res = int((z_dim // 8) ** 0.5)
         self.decoder = nn.Sequential(
-            nn.Linear(z_dim, z_dim),
-            nn.LeakyReLU(),
-            nn.BatchNorm1d(z_dim),
+            # Input size comments assume an input z_dim of 128
+            # Input: batch_size by 128
             nn.Linear(z_dim, z_dim * 4),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim * 4),
-            GenericUnflatten((z_dim, 2, 2)),
-            nn.ConvTranspose2d(
-                z_dim, n_channels * 8, kernel_size=2, stride=2, padding=0
-            ),
+            GenericUnflatten(8, input_res, input_res),
+            # Input: batch_size by 8 by 4 by 4
+            BilinearConvUpsample(8, 8, kernel_size=kernel_size),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 8),
-            nn.ConvTranspose2d(
-                n_channels * 8, n_channels * 8, kernel_size=2, stride=2, padding=0
-            ),
+            nn.BatchNorm2d(8),
+            # Input: batch_size by 8 by 8 by 8
+            BilinearConvUpsample(8, 16, kernel_size=kernel_size),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 8),
-            nn.ConvTranspose2d(
-                n_channels * 8, n_channels * 4, kernel_size=2, stride=2, padding=0
-            ),
+            nn.BatchNorm2d(16),
+            # Input: batch_size by 16 by 16 by 16
+            BilinearConvUpsample(32, 32, kernel_size=kernel_size),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 4),
-            nn.ConvTranspose2d(
-                n_channels * 4, n_channels * 2, kernel_size=2, stride=2, padding=0
-            ),
+            nn.BatchNorm2d(32),
+            # Input: batch_size by 32 by 32 by 32
+            BilinearConvUpsample(32, 64, kernel_size=kernel_size),
             nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 2),
-            nn.ConvTranspose2d(
-                n_channels * 2, n_channels, kernel_size=2, stride=2, padding=0
-            ),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            # Input: batch_size by 64 by 64 by 64
+            nn.Conv2d(64, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
+            # Input: batch_size by 95 by 64 by 64
             nn.Softmax(dim=1),
         )
 
     def forward(self, z):
         out = self.decoder(z)
         return out
+
+
+class Conv2dDownscale(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+
+        kernel_size = 5
+        stride = 2
+        zero_padding = 2
+
+        self.layers = nn.Sequential(
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size,
+                stride=stride,
+                padding=zero_padding,
+            ),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(out_channels),
+        )
+
+    def forward(self, x):
+        return self.layers.forward(x)
 
 
 class VariationalEncoder(nn.Module):
@@ -67,39 +106,24 @@ class VariationalEncoder(nn.Module):
     with 64x64 input image resolution and a 128 latent dimension.
     """
 
-    def __init__(self, n_channels, z_dim):
+    def __init__(self, n_channels=95, z_dim=128):
+        assert n_channels == 95
+        assert z_dim == 128
         super().__init__()
         self.encoder = nn.Sequential(
-            # Input batchsize x n_channels x 64 x 64
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=1),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels, kernel_size=4, stride=1, padding=2),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels),
-            nn.Conv2d(n_channels, n_channels * 2, kernel_size=2, stride=2, padding=0),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 2),
-            nn.Conv2d(
-                n_channels * 2, n_channels * 4, kernel_size=2, stride=2, padding=0
-            ),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 4),
-            nn.Conv2d(
-                n_channels * 4, n_channels * 8, kernel_size=2, stride=2, padding=0
-            ),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 8),
-            nn.Conv2d(
-                n_channels * 8, n_channels * 8, kernel_size=2, stride=2, padding=0
-            ),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(n_channels * 8),
-            nn.Conv2d(n_channels * 8, z_dim, kernel_size=2, stride=2, padding=0),
-            nn.LeakyReLU(),
-            nn.BatchNorm2d(z_dim),
+            # Size comments are based on an input shape of batch_size by 95 by
+            # 64 by 64
+            # Input: batchsize x 95 x 64 x 64
+            Conv2dDownscale(95, 64),
+            # Input: batchsize x 64 x 32 x 32
+            Conv2dDownscale(64, 32),
+            # Input: batch_size x 32 x 16 x 16
+            Conv2dDownscale(32, 16),
+            # Input: batch_size x 16 x 8 x 8
+            Conv2dDownscale(16, 8),
+            # Input: batch_size x 8 x 4 x 4
             Flatten(),
-            nn.Linear(z_dim * 4, z_dim),
+            # Input: batch_size x 128
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
         )

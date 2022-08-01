@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class Flatten(nn.Module):
@@ -18,7 +17,7 @@ class UnFlatten(nn.Module):
 
 
 class GenericUnflatten(nn.Module):
-    def __init__(self, shape):
+    def __init__(self, *shape):
         super(GenericUnflatten, self).__init__()
         self.shape = shape
 

@@ -74,7 +74,13 @@ def get_training_args():
     parser.add_argument(
         "--validation-prop", dest="validation_prop", default=None, type=float
     )
-    parser.add_argument("--char-weights-scaling", dest="char_weights_scaling", default=0.1, type=float, help="If this argument is close to zero, the char weights will be weighed more similarly.")
+    parser.add_argument(
+        "--char-weights-scaling",
+        dest="char_weights_scaling",
+        default=0.1,
+        type=float,
+        help="If this argument is close to zero, the char weights will be weighed more similarly.",
+    )
 
     args = parser.parse_args()
     assert (
