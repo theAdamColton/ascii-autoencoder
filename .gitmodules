@@ -7,3 +7,6 @@
 [submodule "python-pytorch-font-renderer"]
 	path = python-pytorch-font-renderer
 	url = git@github.com:theAdamColton/python-pytorch-font-renderer.git
+[submodule "ascii-art-augmentation"]
+	path = ascii-art-augmentation
+	url = git@github.com:theAdamColton/ascii-art-augmentation.git

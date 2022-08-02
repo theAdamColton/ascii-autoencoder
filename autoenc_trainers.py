@@ -13,6 +13,9 @@ dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
 import ascii_util
 
+sys.path.insert(0, path.join(dirname, "./ascii-art-augmentation/"))
+import augmentation
+
 
 class LightningOneHotVAE(pl.LightningModule):
     """
@@ -44,6 +47,7 @@ class LightningOneHotVAE(pl.LightningModule):
         self.ce_recon_loss_scale = ce_recon_loss_scale
         self.image_recon_loss_coeff = image_recon_loss_coeff
 
+        self.l1_loss = torch.nn.L1Loss()
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         self.bce_loss = torch.nn.BCELoss()
         self.ssim_loss = SSIM()
@@ -52,6 +56,7 @@ class LightningOneHotVAE(pl.LightningModule):
         self.save_hyperparameters(
             ignore=["train_dataloader", "val_dataloader", "font_renderer"]
         )
+        self.random_roll = augmentation.RandomRoll(20, sigma=7)
 
     def train_dataloader(self):
         return self.train_dataloader_obj
@@ -84,7 +89,11 @@ class LightningOneHotVAE(pl.LightningModule):
 
     def step(self, x, batch_idx):
         """Returns loss, logs"""
+        # Will augment the input batch
+        x = self.random_roll(x)
+
         z, x_hat, p, q = self._run_step(x)
+        
 
         # CE Loss between original categorical vectors and reconstructed vectors
         ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
@@ -94,7 +103,7 @@ class LightningOneHotVAE(pl.LightningModule):
         if self.image_recon_loss_coeff > 0.0:
             base_image = self.font_renderer.render(x)
             recon_image = self.font_renderer.render(x_hat)
-            image_recon_loss = self.ssim_loss(
+            image_recon_loss = self.l1_loss(
                 base_image.unsqueeze(1), recon_image.unsqueeze(1)
             )
             image_recon_loss *= self.image_recon_loss_coeff
@@ -123,6 +132,8 @@ class LightningOneHotVAE(pl.LightningModule):
             x, label = self.train_dataloader().dataset.get_random_training_item()
             x = torch.Tensor(x)
             x = x.to(self.device)
+            # Will random roll 
+            x = self.random_roll(x)
 
             with torch.no_grad():
                 self.eval()

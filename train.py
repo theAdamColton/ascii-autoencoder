@@ -136,19 +136,18 @@ def main():
 
     if args.neural_renderer_path:
         font_renderer = PLNeuralRenderer.load_from_checkpoint(args.neural_renderer_path)
-        # font_renderer = font_renderer.to(torch.float32)
         font_renderer.eval()
     else:
         font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
 
-    if not args.load:
-        if args.should_char_weight:
-            character_frequencies = dataset.calculate_character_counts()
-            char_weights = 1.0 / (character_frequencies + 1)
-            char_weights = char_weights**args.char_weights_scaling
-        else:
-            char_weights = torch.ones(95)
+    if args.should_char_weight:
+        character_frequencies = dataset.calculate_character_counts()
+        char_weights = 1.0 / (character_frequencies + 1)
+        char_weights = char_weights**args.char_weights_scaling
+    else:
+        char_weights = torch.ones(95)
 
+    if not args.load:
         vae = LightningOneHotVAE(
             font_renderer,
             dataloader,
@@ -163,13 +162,14 @@ def main():
         vae.init_weights()
 
     else:
-        vae = LightningOneHotVAE.load_from_checkpoint(args.load)
+        vae = LightningOneHotVAE.load_from_checkpoint(args.load, font_renderer=font_renderer, train_dataloader=dataloader, val_dataloader=val_dataloader)
         vae.font_renderer = font_renderer
         vae.lr = args.learning_rate
         vae.print_every = args.print_every
         vae.ce_recon_loss_scale = args.ce_recon_loss_scale
         vae.image_recon_loss_coeff = args.image_recon_loss_coeff
         vae.kl_coeff = args.kl_coeff
+        vae.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         print("Resuming training")
 
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
