@@ -7,6 +7,7 @@ import sys
 from os import path
 
 from autoencoder_models import VariationalEncoder, Decoder
+from ssim import SSIM
 
 dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
@@ -45,9 +46,12 @@ class LightningOneHotVAE(pl.LightningModule):
 
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         self.bce_loss = torch.nn.BCELoss()
-        self.save_hyperparameters()
+        self.ssim_loss = SSIM()
         self.train_dataloader_obj = train_dataloader
         self.val_dataloader_obj = val_dataloader
+        self.save_hyperparameters(
+            ignore=["train_dataloader", "val_dataloader", "font_renderer"]
+        )
 
     def train_dataloader(self):
         return self.train_dataloader_obj
@@ -87,10 +91,15 @@ class LightningOneHotVAE(pl.LightningModule):
         ce_recon_loss *= self.ce_recon_loss_scale
 
         # Image reconstruction loss
-        base_image = self.font_renderer.render(x.argmax(dim=1))
-        recon_image = self.font_renderer.render(x_hat.argmax(dim=1))
-        image_recon_loss = F.mse_loss(base_image, recon_image)
-        image_recon_loss *= self.image_recon_loss_coeff
+        if self.image_recon_loss_coeff > 0.0:
+            base_image = self.font_renderer.render(x)
+            recon_image = self.font_renderer.render(x_hat)
+            image_recon_loss = self.ssim_loss(
+                base_image.unsqueeze(1), recon_image.unsqueeze(1)
+            )
+            image_recon_loss *= self.image_recon_loss_coeff
+        else:
+            image_recon_loss = 0
 
         recon_loss = image_recon_loss + ce_recon_loss
 
@@ -109,7 +118,7 @@ class LightningOneHotVAE(pl.LightningModule):
 
         return loss, logs
 
-    def on_epoch_start(self):
+    def on_train_epoch_end(self):
         if self.current_epoch % self.print_every == 0:
             x, label = self.train_dataloader().dataset.get_random_training_item()
             x = torch.Tensor(x)

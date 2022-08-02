@@ -28,6 +28,12 @@ def get_training_args():
 
     parser.add_argument("--kl-coeff", dest="kl_coeff", type=float, default=1.0)
     parser.add_argument(
+        "--datapath",
+        dest="datapath",
+        default=None,
+        help="Useful for memory-pinned data directories in /dev/shm/",
+    )
+    parser.add_argument(
         "--should-discrete-renderer",
         dest="should_discrete_renderer",
         action="store_true",
@@ -96,16 +102,20 @@ def get_training_args():
     )
 
     args = parser.parse_args()
-    assert (
-        args.should_discrete_renderer and not args.neural_renderer_path
-    ), "Must have exactly one of this arguments"
+    if args.should_discrete_renderer:
+        assert not args.neural_renderer_path
+    else:
+        assert args.neural_renderer_path
+
     return args
 
 
 def main():
     args = get_training_args()
 
-    dataset = AsciiArtDataset(res=64, validation_prop=args.validation_prop)
+    dataset = AsciiArtDataset(
+        res=64, validation_prop=args.validation_prop, datapath=args.datapath
+    )
     validation_dataset = AsciiArtDataset(
         res=64, validation_prop=args.validation_prop, is_validation_dataset=True
     )
@@ -119,13 +129,14 @@ def main():
     val_dataloader = DataLoader(
         validation_dataset,
         batch_size=args.batch_size,
-        shuffle=True,
+        shuffle=False,
         num_workers=args.n_workers,
         pin_memory=True,
     )
 
     if args.neural_renderer_path:
         font_renderer = PLNeuralRenderer.load_from_checkpoint(args.neural_renderer_path)
+        # font_renderer = font_renderer.to(torch.float32)
         font_renderer.eval()
     else:
         font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
@@ -156,15 +167,23 @@ def main():
         vae.font_renderer = font_renderer
         vae.lr = args.learning_rate
         vae.print_every = args.print_every
+        vae.ce_recon_loss_scale = args.ce_recon_loss_scale
+        vae.image_recon_loss_coeff = args.image_recon_loss_coeff
+        vae.kl_coeff = args.kl_coeff
         print("Resuming training")
+
+    logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
 
     trainer = pl.Trainer(
         max_epochs=args.n_epochs,
         accelerator="gpu",
-        gpus=-1,
+        precision=16,
         default_root_dir=args.run_name + "checkpoint/",
         callbacks=[StochasticWeightAveraging()],
+        check_val_every_n_epoch=5,
         auto_lr_find=True,
+        logger=logger,
+        log_every_n_steps=10,
     )
 
     trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
