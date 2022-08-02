@@ -90,6 +90,7 @@ class LightningOneHotVAE(pl.LightningModule):
     def step(self, x, batch_idx):
         """Returns loss, logs"""
         # Will augment the input batch
+
         x = self.random_roll(x)
 
         z, x_hat, p, q = self._run_step(x)
@@ -133,7 +134,7 @@ class LightningOneHotVAE(pl.LightningModule):
             x = torch.Tensor(x)
             x = x.to(self.device)
             # Will random roll 
-            x = self.random_roll(x)
+            x = self.random_roll(x.unsqueeze(0)).squeeze(0)
 
             with torch.no_grad():
                 self.eval()
@@ -148,6 +149,7 @@ class LightningOneHotVAE(pl.LightningModule):
                 print(label)
 
             self.train()
+
 
     def training_step(self, batch, batch_idx):
         """Returns loss"""
