@@ -35,13 +35,11 @@ class LightningOneHotVAE(pl.LightningModule):
         kl_coeff=1.0,
     ):
         super().__init__()
-        z_dim = 128
-        n_channels = 95
 
         self.lr = lr
         self.print_every = print_every
-        self.encoder = VariationalEncoder(n_channels, z_dim)
-        self.decoder = Decoder(n_channels, z_dim)
+        self.encoder = VariationalEncoder()
+        self.decoder = Decoder()
         self.kl_coeff = kl_coeff
         self.font_renderer = font_renderer
         self.ce_recon_loss_scale = ce_recon_loss_scale

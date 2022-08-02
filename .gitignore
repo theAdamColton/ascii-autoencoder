@@ -6,6 +6,5 @@ lightning_logs/
 ./character_embeddings/character_embeddings*
 **/*.npy
 **/*.tar.gz
-**/*.png
 ./character_embeddings/out/*
 .idea

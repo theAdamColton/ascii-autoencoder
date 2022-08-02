@@ -107,19 +107,26 @@ class VariationalEncoder(nn.Module):
         super().__init__()
         n_channels = 95
         assert z_dim == 256
+        kernel_size = 5
         self.encoder = nn.Sequential(
             # Size comments are based on an input shape of batch_size by 95 by
             # 64 by 64
             # Input batch_size x 95 x 64 x 64
             nn.Conv2d(95, 64, kernel_size, stride=1, padding=kernel_size // 2),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(64),
             # Input: batchsize x 64 x 64 x 64
             Conv2dDownscale(64, 32),
             # Input: batchsize x 32 x 32 x 32
             Conv2dDownscale(32, 16),
             # Input: batch_size x 16 x 16 x 16
-            Conv2dDownscale(16, 8),
+            nn.Conv2d(16, 8, 5, stride=1, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(8),
             # Input: batch_size x 8 x 12 x 12
-            Conv2dDownscale(8, 4),
+            nn.Conv2d(8, 4, 5, stride=1, padding=0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(4),
             # Input: batch_size x 4 x 8 x 8
             Flatten(),
             # Input: batch_size x 128

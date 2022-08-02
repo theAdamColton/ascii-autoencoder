@@ -17,6 +17,6 @@
 
 ### Commit 99126b3ca0c2e82571574d3de1410cacdfddeaa5
 
-Was able to train ./models/16precision_random_roll_no_im_losscheckpoint/ for about 2,000 epochs. The loss was converging very predictably. 
+Was able to train ./models/16precision_random_roll_no_im_losscheckpoint/ for about 2,000 epochs. The loss was converging very predictably. This was with nz 128
 
 ![Training run](figures/commit%2099126b3ca0c2e82571574d3de1410cacdfddeaa5%20no_image_loss.png)
