@@ -14,3 +14,9 @@
 * Noticeably, this does not produce only space characters in the output; exclusively using image reconstruction loss seems to stop the model from doing this. The 'shape' of the characters in the decoded output does seem to be semantically consistent with the input. It is important when using image reconstruction loss that the transformation to the rendered image is differentiable, which means using the pytorch-neural-font-renderer instead of the discrete neural renderer. 
 
 * The neural renderer is not good at creating output from random input, it does not accuratly portray the output softmax of the decoder.
+
+### Commit 99126b3ca0c2e82571574d3de1410cacdfddeaa5
+
+Was able to train ./models/16precision_random_roll_no_im_losscheckpoint/ for about 2,000 epochs. The loss was converging very predictably. 
+
+![Training run](figures/commit%2099126b3ca0c2e82571574d3de1410cacdfddeaa5%20no_image_loss.png)
