@@ -94,7 +94,6 @@ class LightningOneHotVAE(pl.LightningModule):
         x = self.random_roll(x)
 
         z, x_hat, p, q = self._run_step(x)
-        
 
         # CE Loss between original categorical vectors and reconstructed vectors
         ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
@@ -102,8 +101,10 @@ class LightningOneHotVAE(pl.LightningModule):
 
         # Image reconstruction loss
         if self.image_recon_loss_coeff > 0.0:
+            # We take the softmax of x_hat because the model doesn't
+            x_hat_softmax = F.softmax(x_hat, dim=1)
             base_image = self.font_renderer.render(x)
-            recon_image = self.font_renderer.render(x_hat)
+            recon_image = self.font_renderer.render(x_hat_softmax)
             image_recon_loss = self.l1_loss(
                 base_image.unsqueeze(1), recon_image.unsqueeze(1)
             )

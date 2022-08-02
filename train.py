@@ -134,11 +134,7 @@ def main():
         pin_memory=True,
     )
 
-    if args.neural_renderer_path:
-        font_renderer = PLNeuralRenderer.load_from_checkpoint(args.neural_renderer_path)
-        font_renderer.eval()
-    else:
-        font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
+    font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
 
     if args.should_char_weight:
         character_frequencies = dataset.calculate_character_counts()
@@ -171,6 +167,12 @@ def main():
         vae.kl_coeff = args.kl_coeff
         vae.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         print("Resuming training")
+
+
+    if args.neural_renderer_path:
+        font_renderer = PLNeuralRenderer.load_from_checkpoint(args.neural_renderer_path)
+        font_renderer.eval()
+        vae.font_renderer=font_renderer
 
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
 
