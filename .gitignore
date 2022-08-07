@@ -8,3 +8,4 @@ lightning_logs/
 **/*.tar.gz
 ./character_embeddings/out/*
 .idea
+.idea

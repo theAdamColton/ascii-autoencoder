@@ -132,7 +132,7 @@ class LightningOneHotVAE(pl.LightningModule):
             x, label = self.train_dataloader().dataset.get_random_training_item()
             x = torch.Tensor(x)
             x = x.to(self.device)
-            # Will random roll 
+            # Will random roll
             x = self.random_roll(x.unsqueeze(0)).squeeze(0)
 
             with torch.no_grad():
@@ -148,7 +148,6 @@ class LightningOneHotVAE(pl.LightningModule):
                 print(label)
 
             self.train()
-
 
     def training_step(self, batch, batch_idx):
         """Returns loss"""

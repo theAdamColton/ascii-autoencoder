@@ -11,7 +11,7 @@ class BilinearConvUpsample(nn.Module):
     Multiplies the resolution by 2
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=5, scale: float=2.0):
+    def __init__(self, in_channels, out_channels, kernel_size=5, scale: float = 2.0):
         super().__init__()
 
         # This sets the zero_pad so that the conv2d layer will have
@@ -54,7 +54,7 @@ class Decoder(nn.Module):
             # Input: batch_size by 4 by 8 by 8
             BilinearConvUpsample(4, 8, kernel_size=kernel_size, scale=1.5),
             # Input batch_size by 8 by 12 by 12
-            BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=4/3),
+            BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=4 / 3),
             # Input: batch_size by 16 by 16 by 16
             BilinearConvUpsample(16, 32, kernel_size=kernel_size),
             # Input: batch_size by 32 by 32 by 32
@@ -73,6 +73,7 @@ class Conv2dDownscale(nn.Module):
     """
     Halves the input res
     """
+
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
