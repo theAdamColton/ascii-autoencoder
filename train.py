@@ -13,32 +13,28 @@ sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
 from dataset import AsciiArtDataset
 
 dirname = path.dirname(__file__)
-sys.path.insert(0, path.join(dirname, "./neural-font-renderer/"))
-from lightning_model import PLNeuralRenderer
-
-dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
-from font_renderer import FontRenderer
+from font_renderer import ContinuousFontRenderer
 
 from autoenc_trainers import LightningOneHotVAE
 
 
 def get_training_args():
     parser = argparse.ArgumentParser()
+    # Renderer args
+    parser.add_argument(
+        "--renderer-type",
+        dest="renderer_type",
+        choices=["none", "continuous"],
+        default="none",
+        help="Which renderer to use for image loss.",
+    )
 
-    parser.add_argument("--kl-coeff", dest="kl_coeff", type=float, default=1.0)
-    parser.add_argument(
-        "--should-discrete-renderer",
-        dest="should_discrete_renderer",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--neural-renderer-path", dest="neural_renderer_path", default=None
-    )
+    # Loss coefficients
     parser.add_argument(
         "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1, type=float
     )
+    parser.add_argument("--kl-coeff", dest="kl_coeff", type=float, default=1.0)
     parser.add_argument(
         "--image-recon-loss-coeff",
         dest="image_recon_loss_coeff",
@@ -73,6 +69,7 @@ def get_training_args():
         action="store_true",
     )
 
+    # Training args
     parser.add_argument(
         "--learning-rate", dest="learning_rate", default=5e-5, type=float
     )
@@ -97,6 +94,7 @@ def get_training_args():
         "--validation-prop", dest="validation_prop", default=None, type=float
     )
 
+    # Character weighting for CE loss
     parser.add_argument(
         "--should-char-weight",
         dest="should_char_weight",
@@ -108,21 +106,20 @@ def get_training_args():
         dest="char_weights_scaling",
         default=0.1,
         type=float,
-        help="If this argument is close to zero, the char weights will be weighed more similarly.",
+        help="If this argument is close to zero, the char weights will be weighed more similarly. When this argument is 1, (the default), the character weigts will be inversly proportional to their frequency in the dataset.",
     )
     parser.add_argument(
         "--space-deemph",
         dest="space_deemph",
         default=1.0,
         type=float,
-        help="Space character weight is decreased by this many STDs if should-char-weight, otherwise, the space character weight is divided by this number.",
+        help="The space character weight is divided by this number.",
     )
 
     args = parser.parse_args()
-    if args.should_discrete_renderer:
-        assert not args.neural_renderer_path
-    else:
-        assert args.neural_renderer_path
+
+    if args.renderer_type == "none":
+        args.image_recon_loss_coeff = 0
 
     return args
 
@@ -141,11 +138,11 @@ def main():
         character_frequencies = dataset.calculate_character_counts()
         char_weights = 1.0 / (character_frequencies + 1)
         char_weights = char_weights**args.char_weights_scaling
-        std = char_weights.std()
-        char_weights[0] = char_weights[0] - std * args.space_deemph
     else:
         char_weights = torch.ones(95)
-        char_weights[0] = char_weights[0] / args.space_deemph
+    char_weights[0] = char_weights[0] / args.space_deemph
+
+    print("Character weights: {}".format(char_weights))
 
     if args.dataset_to_gpu:
         args.n_workers = 0
@@ -168,11 +165,14 @@ def main():
         pin_memory=True,
     )
 
-    font_renderer = FontRenderer(res=16, device=torch.device("cuda"))
+    # The character font size of each character in the image
+    font_renderer_res = 16
+    font_renderer = ContinuousFontRenderer(res=16, device=torch.device("cuda"))
 
     if not args.load:
         vae = LightningOneHotVAE(
             font_renderer,
+            font_renderer_res,
             dataloader,
             val_dataloader=val_dataloader,
             lr=args.learning_rate,
@@ -188,6 +188,7 @@ def main():
         vae = LightningOneHotVAE.load_from_checkpoint(
             args.load,
             font_renderer=font_renderer,
+            font_renderer_res=font_renderer_res,
             train_dataloader=dataloader,
             val_dataloader=val_dataloader,
         )
@@ -199,11 +200,6 @@ def main():
         vae.kl_coeff = args.kl_coeff
         vae.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         print("Resuming training")
-
-    if args.neural_renderer_path:
-        font_renderer = PLNeuralRenderer.load_from_checkpoint(args.neural_renderer_path)
-        font_renderer.eval()
-        vae.font_renderer = font_renderer
 
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
 

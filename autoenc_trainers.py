@@ -16,6 +16,10 @@ import ascii_util
 sys.path.insert(0, path.join(dirname, "./ascii-art-augmentation/"))
 import augmentation
 
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
+from font_renderer import FontRenderer
+
 
 class LightningOneHotVAE(pl.LightningModule):
     """
@@ -25,6 +29,7 @@ class LightningOneHotVAE(pl.LightningModule):
     def __init__(
         self,
         font_renderer,
+        font_renderer_res,
         train_dataloader,
         val_dataloader=None,
         lr=5e-5,
