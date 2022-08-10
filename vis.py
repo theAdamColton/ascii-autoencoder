@@ -9,3 +9,4 @@ def side_by_side(x, y):
     fig, (ax0, ax1) = plt.subplots(1,2)
     ax0.imshow(x.detach().cpu(), cmap='gray', vmin=0, vmax=1)
     ax1.imshow(y.detach().cpu(), cmap='gray', vmin=0, vmax=1)
+    plt.show()

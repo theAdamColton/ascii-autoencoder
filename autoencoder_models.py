@@ -45,14 +45,14 @@ class Decoder(nn.Module):
         input_side_res = 8
         input_channels = 4
         self.decoder = nn.Sequential(
-            # Input size comments assume an input z_dim of 128
-            # Input: batch_size by 128
+            # Input size comments assume an input z_dim of 256
+            # Input: batch_size by 256
             nn.Linear(z_dim, z_dim),
             nn.LeakyReLU(),
             nn.BatchNorm1d(z_dim),
             GenericUnflatten(input_channels, input_side_res, input_side_res),
             # Input: batch_size by 4 by 8 by 8
-            BilinearConvUpsample(4, 8, kernel_size=kernel_size, scale=1.5),
+            BilinearConvUpsample(4, 8, kernel_size=kernel_size, scale=3 / 2),
             # Input batch_size by 8 by 12 by 12
             BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=4 / 3),
             # Input: batch_size by 16 by 16 by 16

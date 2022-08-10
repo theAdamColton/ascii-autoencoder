@@ -1,5 +1,6 @@
 from pytorch_lightning.callbacks import StochasticWeightAveraging, ModelCheckpoint
 import torch
+import torchinfo
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import argparse
@@ -192,6 +193,8 @@ def main():
             gumbel_tau=args.gumbel_tau
         )
         vae.init_weights()
+        torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
+        torchinfo.summary(vae.decoder, input_size=(7, 256))
 
     else:
         vae = LightningOneHotVAE.load_from_checkpoint(
@@ -221,7 +224,6 @@ def main():
         max_epochs=args.n_epochs,
         accelerator="gpu",
         precision=16,
-        # default_root_dir=args.run_name + "checkpoint/",
         callbacks=[StochasticWeightAveraging(), model_checkpoint],
         check_val_every_n_epoch=5,
         auto_lr_find=True,

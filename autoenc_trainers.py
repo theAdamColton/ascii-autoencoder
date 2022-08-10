@@ -2,12 +2,14 @@ import torch
 import torch.nn.functional as F
 from torch.nn.functional import gumbel_softmax
 import pytorch_lightning as pl
+import bpdb
 
 import sys
 from os import path
 
 from autoencoder_models import VariationalEncoder, Decoder
 from ssim import SSIM
+import vis
 
 dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
@@ -92,21 +94,17 @@ class LightningOneHotVAE(pl.LightningModule):
         z = q.rsample()
         return p, q, z
 
-    def calculate_image_loss(self, x_hat, x, batch_size):
-        # Gumbel step, with a non discrete forward, and backwards
-        x_hat_gumbel = gumbel_softmax(x_hat, dim=1, tau=self.gumbel_tau)
+    def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
-        recon_image = self.font_renderer.render(x_hat_gumbel)
+        recon_image = self.font_renderer.render(x_hat)
         image_recon_loss = self.l1_loss(
             base_image.unsqueeze(1), recon_image.unsqueeze(1)
         )
-        image_recon_loss /= batch_size
         image_recon_loss *= self.image_recon_loss_coeff
         return image_recon_loss
 
-    def calculate_ce_loss(self, x_hat, x, batch_size):
+    def calculate_ce_loss(self, x_hat, x):
         ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
-        ce_recon_loss /= batch_size
         ce_recon_loss *= self.ce_recon_loss_scale
         return ce_recon_loss
 
@@ -118,14 +116,17 @@ class LightningOneHotVAE(pl.LightningModule):
 
         z, x_hat, p, q = self._run_step(x)
 
+
         # CE Loss between original categorical vectors and reconstructed vectors
         if self.ce_loss:
-            ce_recon_loss = self.calculate_ce_loss(x_hat, x, batch_size)
+            ce_recon_loss = self.calculate_ce_loss(x_hat, x)
         else:
             ce_recon_loss = 0.0
         # Image reconstruction loss
         if self.image_recon_loss_coeff > 0.0:
-            image_recon_loss = self.calculate_image_loss(x_hat, x, batch_size)
+            # Gumbel step, with a non discrete forward, and backwards
+            x_hat_gumbel = gumbel_softmax(x_hat, dim=1, tau=self.gumbel_tau)
+            image_recon_loss = self.calculate_image_loss(x_hat_gumbel, x)
         else:
             image_recon_loss = 0.0
 
@@ -133,7 +134,6 @@ class LightningOneHotVAE(pl.LightningModule):
 
         kl = torch.distributions.kl_divergence(q, p)
         kl = kl.mean()
-        kl /= batch_size
         kl *= self.kl_coeff
 
         loss = kl + recon_loss
@@ -160,9 +160,17 @@ class LightningOneHotVAE(pl.LightningModule):
 
                 # Reconstructs the item
                 x_recon, _, _ = self.forward(x.unsqueeze(0))
-                x_recon = x_recon.squeeze(0)
+                x_recon_gumbel = gumbel_softmax(x_recon, dim=1, tau=self.gumbel_tau)
+
+                # Renders images
+                base_image = self.font_renderer.render(x.unsqueeze(0))
+                recon_image = self.font_renderer.render(x_recon_gumbel)
+                side_by_side = torch.concat((base_image, recon_image), dim=2)
+                # Logs images
+                self.logger.experiment.add_image('epoch {}'.format(self.current_epoch), side_by_side, 0)
+
                 x_str = ascii_util.one_hot_embedded_matrix_to_string(x)
-                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon)
+                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon_gumbel.squeeze(0))
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)
                 print(label)

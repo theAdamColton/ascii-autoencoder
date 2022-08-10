@@ -13,3 +13,8 @@ The goal is a continuous transfer function from the one hot to the rendered ASCI
 * Images containing mostly whitespace in comparison, were usually not well done
 
 
+### commit: model `models/stage0_gumbel`
+
+* This model was trained using these args: `bpython train.py --renderer-type continuous --ce-recon-loss-scale 0.0 --kl-coeff 0.05 --image-recon-loss-coeff 100.0 --n-workers 16 --validation-prop 0.05 --learning-rate 4e-5 -b 128 -n 500 --run-name stage0_gumbel --print-every 2 --gumbel-tau 0.5`
+* After about 90 epochs, the model reconstructed spaces everywhere for most samples
+* It was difficult looking at a plot of the loss over time to determine that the loss was decreasing.
