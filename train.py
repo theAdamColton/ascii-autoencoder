@@ -140,6 +140,7 @@ def main():
         char_weights = char_weights**args.char_weights_scaling
     else:
         char_weights = torch.ones(95)
+
     char_weights[0] = char_weights[0] / args.space_deemph
 
     print("Character weights: {}".format(char_weights))
