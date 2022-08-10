@@ -24,7 +24,7 @@ class BilinearConvUpsample(nn.Module):
             nn.Conv2d(
                 in_channels, out_channels, kernel_size, stride=1, padding=zero_pad
             ),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
@@ -48,7 +48,7 @@ class Decoder(nn.Module):
             # Input size comments assume an input z_dim of 256
             # Input: batch_size by 256
             nn.Linear(z_dim, z_dim),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm1d(z_dim),
             GenericUnflatten(input_channels, input_side_res, input_side_res),
             # Input: batch_size by 4 by 8 by 8
@@ -89,7 +89,7 @@ class Conv2dDownscale(nn.Module):
                 stride=stride,
                 padding=zero_padding,
             ),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
@@ -114,7 +114,7 @@ class VariationalEncoder(nn.Module):
             # 64 by 64
             # Input batch_size x 95 x 64 x 64
             nn.Conv2d(95, 64, kernel_size, stride=1, padding=kernel_size // 2),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(64),
             # Input: batchsize x 64 x 64 x 64
             Conv2dDownscale(64, 32),
@@ -122,16 +122,16 @@ class VariationalEncoder(nn.Module):
             Conv2dDownscale(32, 16),
             # Input: batch_size x 16 x 16 x 16
             nn.Conv2d(16, 8, 5, stride=1, padding=0),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(8),
             # Input: batch_size x 8 x 12 x 12
             nn.Conv2d(8, 4, 5, stride=1, padding=0),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(4),
             # Input: batch_size x 4 x 8 x 8
             Flatten(),
             # Input: batch_size x 128
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm1d(z_dim),
         )
 

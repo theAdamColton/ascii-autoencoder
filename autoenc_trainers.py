@@ -31,7 +31,6 @@ class LightningOneHotVAE(pl.LightningModule):
     def __init__(
         self,
         font_renderer,
-        font_renderer_res,
         train_dataloader,
         val_dataloader=None,
         lr=5e-5,
@@ -54,6 +53,7 @@ class LightningOneHotVAE(pl.LightningModule):
         self.image_recon_loss_coeff = image_recon_loss_coeff
 
         self.l1_loss = torch.nn.L1Loss()
+        self.mse_loss = torch.nn.MSELoss(size_average=False)
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         self.bce_loss = torch.nn.BCELoss()
         self.ssim_loss = SSIM()
@@ -64,6 +64,11 @@ class LightningOneHotVAE(pl.LightningModule):
         )
         self.random_roll = augmentation.RandomRoll(15, sigma=5)
         self.gumbel_tau = gumbel_tau
+        self.discrete_font_renderer = FontRenderer(
+            res=self.font_renderer.font_res,
+            zoom=self.font_renderer.zoom,
+            device=torch.device("cuda"),
+        )
 
     def train_dataloader(self):
         return self.train_dataloader_obj
@@ -97,7 +102,7 @@ class LightningOneHotVAE(pl.LightningModule):
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
         recon_image = self.font_renderer.render(x_hat)
-        image_recon_loss = self.l1_loss(
+        image_recon_loss = self.mse_loss(
             base_image.unsqueeze(1), recon_image.unsqueeze(1)
         )
         image_recon_loss *= self.image_recon_loss_coeff
@@ -115,7 +120,6 @@ class LightningOneHotVAE(pl.LightningModule):
         batch_size = x.shape[0]
 
         z, x_hat, p, q = self._run_step(x)
-
 
         # CE Loss between original categorical vectors and reconstructed vectors
         if self.ce_loss:
@@ -167,10 +171,14 @@ class LightningOneHotVAE(pl.LightningModule):
                 recon_image = self.font_renderer.render(x_recon_gumbel)
                 side_by_side = torch.concat((base_image, recon_image), dim=2)
                 # Logs images
-                self.logger.experiment.add_image('epoch {}'.format(self.current_epoch), side_by_side, 0)
+                self.logger.experiment.add_image(
+                    "epoch {}".format(self.current_epoch), side_by_side, 0
+                )
 
                 x_str = ascii_util.one_hot_embedded_matrix_to_string(x)
-                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(x_recon_gumbel.squeeze(0))
+                x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(
+                    x_recon_gumbel.squeeze(0)
+                )
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)
                 print(label)

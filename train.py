@@ -24,11 +24,16 @@ def get_training_args():
     parser = argparse.ArgumentParser()
     # Renderer args
     parser.add_argument(
-        "--renderer-type",
-        dest="renderer_type",
-        choices=["none", "continuous"],
-        default="none",
-        help="Which renderer to use for image loss.",
+        "--font-res",
+        dest="font_res",
+        type=int,
+        default=16,
+    )
+    parser.add_argument(
+        "--font-zoom",
+        dest="font_zoom",
+        type=int,
+        default=20,
     )
 
     # Loss coefficients
@@ -94,6 +99,9 @@ def get_training_args():
     parser.add_argument(
         "--validation-prop", dest="validation_prop", default=None, type=float
     )
+    parser.add_argument(
+        "--validation-every", dest="validation_every", default=8, type=int
+    )
 
     # Character weighting for CE loss
     parser.add_argument(
@@ -125,9 +133,6 @@ def get_training_args():
     )
 
     args = parser.parse_args()
-
-    if args.renderer_type == "none":
-        args.image_recon_loss_coeff = 0
 
     return args
 
@@ -175,13 +180,13 @@ def main():
     )
 
     # The character font size of each character in the image
-    font_renderer_res = 16
-    font_renderer = ContinuousFontRenderer(res=16, device=torch.device("cuda"))
+    font_renderer = ContinuousFontRenderer(
+        res=args.font_res, device=torch.device("cuda"), zoom=args.font_zoom,
+    )
 
     if not args.load:
         vae = LightningOneHotVAE(
             font_renderer,
-            font_renderer_res,
             dataloader,
             val_dataloader=val_dataloader,
             lr=args.learning_rate,
@@ -190,7 +195,7 @@ def main():
             ce_recon_loss_scale=args.ce_recon_loss_scale,
             image_recon_loss_coeff=args.image_recon_loss_coeff,
             kl_coeff=args.kl_coeff,
-            gumbel_tau=args.gumbel_tau
+            gumbel_tau=args.gumbel_tau,
         )
         vae.init_weights()
         torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
@@ -200,7 +205,6 @@ def main():
         vae = LightningOneHotVAE.load_from_checkpoint(
             args.load,
             font_renderer=font_renderer,
-            font_renderer_res=font_renderer_res,
             train_dataloader=dataloader,
             val_dataloader=val_dataloader,
         )
@@ -217,7 +221,8 @@ def main():
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
 
     model_checkpoint = ModelCheckpoint(
-        dirpath=args.run_name + "checkpoint/", every_n_epochs=40
+        dirpath=args.run_name + "checkpoint/",
+        every_n_epochs=40,
     )
 
     trainer = pl.Trainer(
@@ -225,7 +230,7 @@ def main():
         accelerator="gpu",
         precision=16,
         callbacks=[StochasticWeightAveraging(), model_checkpoint],
-        check_val_every_n_epoch=5,
+        check_val_every_n_epoch=args.validation_every,
         auto_lr_find=True,
         logger=logger,
         log_every_n_steps=10,
