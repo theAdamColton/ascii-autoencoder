@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torch.nn.functional import gumbel_softmax
 import pytorch_lightning as pl
 
 import sys
@@ -37,6 +38,7 @@ class LightningOneHotVAE(pl.LightningModule):
         ce_recon_loss_scale=0.1,
         image_recon_loss_coeff=1.0,
         kl_coeff=1.0,
+        gumbel_tau=0.9,
     ):
         super().__init__()
 
@@ -58,7 +60,8 @@ class LightningOneHotVAE(pl.LightningModule):
         self.save_hyperparameters(
             ignore=["train_dataloader", "val_dataloader", "font_renderer"]
         )
-        self.random_roll = augmentation.RandomRoll(20, sigma=7)
+        self.random_roll = augmentation.RandomRoll(15, sigma=5)
+        self.gumbel_tau = gumbel_tau
 
     def train_dataloader(self):
         return self.train_dataloader_obj
@@ -89,35 +92,48 @@ class LightningOneHotVAE(pl.LightningModule):
         z = q.rsample()
         return p, q, z
 
+    def calculate_image_loss(self, x_hat, x, batch_size):
+        # Gumbel step, with a non discrete forward, and backwards
+        x_hat_gumbel = gumbel_softmax(x_hat, dim=1, tau=self.gumbel_tau)
+        base_image = self.font_renderer.render(x)
+        recon_image = self.font_renderer.render(x_hat_gumbel)
+        image_recon_loss = self.l1_loss(
+            base_image.unsqueeze(1), recon_image.unsqueeze(1)
+        )
+        image_recon_loss /= batch_size
+        image_recon_loss *= self.image_recon_loss_coeff
+        return image_recon_loss
+
+    def calculate_ce_loss(self, x_hat, x, batch_size):
+        ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
+        ce_recon_loss /= batch_size
+        ce_recon_loss *= self.ce_recon_loss_scale
+        return ce_recon_loss
+
     def step(self, x, batch_idx):
         """Returns loss, logs"""
         # Will augment the input batch
-
         x = self.random_roll(x)
+        batch_size = x.shape[0]
 
         z, x_hat, p, q = self._run_step(x)
 
         # CE Loss between original categorical vectors and reconstructed vectors
-        ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
-        ce_recon_loss *= self.ce_recon_loss_scale
-
+        if self.ce_loss:
+            ce_recon_loss = self.calculate_ce_loss(x_hat, x, batch_size)
+        else:
+            ce_recon_loss = 0.0
         # Image reconstruction loss
         if self.image_recon_loss_coeff > 0.0:
-            # We take the softmax of x_hat because the model doesn't
-            x_hat_softmax = F.softmax(x_hat, dim=1)
-            base_image = self.font_renderer.render(x)
-            recon_image = self.font_renderer.render(x_hat_softmax)
-            image_recon_loss = self.l1_loss(
-                base_image.unsqueeze(1), recon_image.unsqueeze(1)
-            )
-            image_recon_loss *= self.image_recon_loss_coeff
+            image_recon_loss = self.calculate_image_loss(x_hat, x, batch_size)
         else:
-            image_recon_loss = 0
+            image_recon_loss = 0.0
 
         recon_loss = image_recon_loss + ce_recon_loss
 
         kl = torch.distributions.kl_divergence(q, p)
         kl = kl.mean()
+        kl /= batch_size
         kl *= self.kl_coeff
 
         loss = kl + recon_loss

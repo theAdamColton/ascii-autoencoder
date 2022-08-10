@@ -116,6 +116,13 @@ def get_training_args():
         help="The space character weight is divided by this number.",
     )
 
+    parser.add_argument(
+        "--gumbel-tau",
+        dest="gumbel_tau",
+        type=float,
+        default=0.9,
+    )
+
     args = parser.parse_args()
 
     if args.renderer_type == "none":
@@ -182,6 +189,7 @@ def main():
             ce_recon_loss_scale=args.ce_recon_loss_scale,
             image_recon_loss_coeff=args.image_recon_loss_coeff,
             kl_coeff=args.kl_coeff,
+            gumbel_tau=args.gumbel_tau
         )
         vae.init_weights()
 
@@ -200,6 +208,7 @@ def main():
         vae.image_recon_loss_coeff = args.image_recon_loss_coeff
         vae.kl_coeff = args.kl_coeff
         vae.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
+        vae.gumbel_tau = args.gumbel_tau
         print("Resuming training")
 
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
