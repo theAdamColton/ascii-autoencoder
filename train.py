@@ -197,7 +197,7 @@ def main():
             kl_coeff=args.kl_coeff,
             gumbel_tau=args.gumbel_tau,
         )
-        vae.init_weights()
+        vae.init_weights(std=0.01)
         torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
         torchinfo.summary(vae.decoder, input_size=(7, 256))
 

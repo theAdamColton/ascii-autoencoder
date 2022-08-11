@@ -16,5 +16,38 @@ The goal is a continuous transfer function from the one hot to the rendered ASCI
 ### commit: model `models/stage0_gumbel`
 
 * This model was trained using these args: `bpython train.py --renderer-type continuous --ce-recon-loss-scale 0.0 --kl-coeff 0.05 --image-recon-loss-coeff 100.0 --n-workers 16 --validation-prop 0.05 --learning-rate 4e-5 -b 128 -n 500 --run-name stage0_gumbel --print-every 2 --gumbel-tau 0.5`
+* L1 Loss
 * After about 90 epochs, the model reconstructed spaces everywhere for most samples
 * It was difficult looking at a plot of the loss over time to determine that the loss was decreasing.
+
+### Commit: 469523a0af9a3874b9ae2516770ace755989c03d
+
+* Trained with gumbel-tau of 0.5
+* Only used mse image loss
+* This model was run on a small subset of the dataset, 31 images
+* It was able to start to reconstruct halfway close representations
+	* I found that training with the same args, but 0.3 tau led to the model not reproducing as well, not makeing anything but whitespace.
+
+```
+                                                                   |
+                                                                   |
+                  -.                       .-                      |
+              _..-'(                       )`-.._                  |              `   ``  `       `                `         `
+           ./'. '||\\.      _ _ /| ACK!  .//||` .`\.               |    `  ` `` `````l[[```[[l`````` ` `  ` ` ` ``````````` `  ``
+        ./'.|'.'||||\\|..   \'o.O' /  ..|//||||`.`|.`\.            |    ` `````````Jl[[[l[[[[[[`````````` ```[l``[`[[[`[[```````` ````
+     ./'..|'.|| |||||\``````=(___)=''''''/||||| ||.`|..`\.         |   `` ```````[[[[[[[[[![[[[[[[[[[[`````[[[[`[[[[[[[[[[[[[[`l``````
+   ./'.||'.|||| ||||||||||||.  U  .|||||||||||| ||||.`||.`\.       |    .``[``[[[[[[[![[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[`````
+  /'|||'.|||||| |||||||||||||     ||||||||||||| ||||||.`|||`\      |   [```[[[l[![[[[[[![[[[[![![[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[l[[[``
+ '.|||'.||||||| |||||||||||||     ||||||||||||| |||||||.`|||.`     |   [`[[[[![[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[``|`
+'.||| ||||||||| |/'   ``\||``     ''||/''   `\| ||||||||| |||.`    |   ``[[[[[[`[[`[[[````````````` `````[[[[[`[`|[[[[[[[[[[[[[[[[[[[``
+|/' \./'     `\./         \!|\   /|!/         \./'     `\./ `\|    |   ```|[[[``[` ````````````` ``   `````````````````` `````````[````
+V    V         V          }' `\ /' `{          V         V    V    |   ` [ ``` `        `                  ``  ````````` `     ```` ```
+`    `         `               V               '         '    '    |                                              ` `  `        `  ` `
+```
+
+### What to pick for `font_res` and `font_zoom`
+
+* 7 allows the proper rendering of zeros and most letters, but [ characters look indistinguishable from |
+
+### 
+
