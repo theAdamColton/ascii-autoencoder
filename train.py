@@ -197,9 +197,9 @@ def main():
             kl_coeff=args.kl_coeff,
             gumbel_tau=args.gumbel_tau,
         )
-        vae.init_weights(std=0.01)
+        vae.init_weights(std=0.10)
         torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
-        torchinfo.summary(vae.decoder, input_size=(7, 256))
+        torchinfo.summary(vae.decoder, input_size=(7, 512))
 
     else:
         vae = LightningOneHotVAE.load_from_checkpoint(
@@ -228,7 +228,7 @@ def main():
     trainer = pl.Trainer(
         max_epochs=args.n_epochs,
         accelerator="gpu",
-        precision=16,
+#        precision=16,
         callbacks=[StochasticWeightAveraging(), model_checkpoint],
         check_val_every_n_epoch=args.validation_every,
         auto_lr_find=True,

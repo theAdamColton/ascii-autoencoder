@@ -36,7 +36,7 @@ class LightningOneHotVAE(pl.LightningModule):
         lr=5e-5,
         print_every=10,
         char_weights=None,
-        ce_recon_loss_scale=0.1,
+        ce_recon_loss_scale=1.0,
         image_recon_loss_coeff=1.0,
         kl_coeff=1.0,
         gumbel_tau=0.9,
@@ -122,7 +122,7 @@ class LightningOneHotVAE(pl.LightningModule):
         z, x_hat, p, q = self._run_step(x)
 
         # CE Loss between original categorical vectors and reconstructed vectors
-        if self.ce_loss:
+        if self.ce_recon_loss_scale > 0.0:
             ce_recon_loss = self.calculate_ce_loss(x_hat, x)
         else:
             ce_recon_loss = 0.0
