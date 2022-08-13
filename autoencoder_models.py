@@ -24,6 +24,7 @@ class Decoder(nn.Module):
             nn.Linear(z_dim, z_dim),
             nn.ReLU(),
             nn.BatchNorm1d(z_dim),
+            # Input: batch_size by 256
             nn.Linear(z_dim, z_dim),
             nn.ReLU(),
             nn.BatchNorm1d(z_dim),

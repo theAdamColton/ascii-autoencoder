@@ -24,8 +24,6 @@ from font_renderer import FontRenderer
 
 from base_vae import BaseVAE
 
-from image_autoencoder import ImageDecoder, ImageEncoderVAE
-
 
 class LightningOneHotVAE(BaseVAE):
     """
@@ -74,19 +72,15 @@ class LightningOneHotVAE(BaseVAE):
             device=torch.device("cuda"),
         )
 
-        self.image_encoder = ImageEncoderVAE()
-        self.image_decoder = ImageDecoder()
-
-
 
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
         recon_image = self.font_renderer.render(x_hat)
-        mse_loss = self.mse_loss(
+        recon_loss = self.mse_loss(
             base_image.unsqueeze(1), recon_image.unsqueeze(1)
         )
-        mse_loss *= self.image_recon_loss_coeff
-        return image_recon_loss
+        recon_loss *= self.image_recon_loss_coeff
+        return recon_loss
 
     def calculate_ce_loss(self, x_hat, x):
         ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
