@@ -1,4 +1,5 @@
 import torch
+import torch.utils.tensorboard
 import torch.nn as nn
 import sys
 import os
@@ -18,12 +19,12 @@ import augmentation
 
 dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
-from font_renderer import FontRenderer
+from font_renderer import ContinuousFontRenderer
 
 from base_vae import BaseVAE
 
 
-class ImageEncoderVAE(BaseVAE):
+class ImageEncoderVAE(nn.Module):
     """Autoencoder for grayscale 640 x 640 images of rendered text."""
     def __init__(self):
         super().__init__()
@@ -84,11 +85,35 @@ class ImageDecoder(nn.Module):
             return self.decoder(x)
 
 
-class LitImageAutoencoder():
-    def __init__(self, lr=5e-4, train_dataloader=None):
+class LitImageAutoencoder(BaseVAE):
+    def __init__(self, lr=5e-4, train_dataloader=None, kl_coeff=1.0, save_im_every=10):
         super().__init__()
         self.lr = lr
         self.train_dataloader_obj = train_dataloader
         self.encoder = ImageEncoderVAE()
         self.decoder = ImageDecoder()
+        self.random_roll = augmentation.RandomRoll(20, sigma=5)
+        self.mse_loss = nn.MSELoss(size_average=True)
+        self.kl_coeff = kl_coeff
+        self.save_im_every = save_every
+        self.font_renderer = ContinuousFontRenderer(
+                res = 12, device=torch.device('cuda'), zoom = 21
+        )
+
+    def step(self, x, batch_idx):
+        """returns loss, logs"""
+        # X is an input vector of one hot or close to one hot batch_size x 95 x 64 x 64
+        x = self.random_roll(x)
+        x = self.font_renderer(x)
+        z, x_hat, p, q = self._run_step(x)
+        recon_loss = self.mse_loss(x, x_hat)
+        kl = torch.distributions.kl_divergence(q, p).mean()
+        kl *= self.kl_coeff
+
+        logs = {
+            "im_vae_loss": recon_loss,
+            "im_vae_kl": kl,
+        }
+
+        return loss, logs
 

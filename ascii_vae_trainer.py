@@ -24,6 +24,8 @@ from font_renderer import FontRenderer
 
 from base_vae import BaseVAE
 
+from image_autoencoder import ImageDecoder, ImageEncoderVAE
+
 
 class LightningOneHotVAE(BaseVAE):
     """
@@ -72,13 +74,18 @@ class LightningOneHotVAE(BaseVAE):
             device=torch.device("cuda"),
         )
 
+        self.image_encoder = ImageEncoderVAE()
+        self.image_decoder = ImageDecoder()
+
+
+
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
         recon_image = self.font_renderer.render(x_hat)
-        image_recon_loss = self.mse_loss(
+        mse_loss = self.mse_loss(
             base_image.unsqueeze(1), recon_image.unsqueeze(1)
         )
-        image_recon_loss *= self.image_recon_loss_coeff
+        mse_loss *= self.image_recon_loss_coeff
         return image_recon_loss
 
     def calculate_ce_loss(self, x_hat, x):
@@ -90,8 +97,6 @@ class LightningOneHotVAE(BaseVAE):
         """Returns loss, logs"""
         # Will augment the input batch
         x = self.random_roll(x)
-        batch_size = x.shape[0]
-
         z, x_hat, p, q = self._run_step(x)
 
         # CE Loss between original categorical vectors and reconstructed vectors
@@ -115,10 +120,9 @@ class LightningOneHotVAE(BaseVAE):
 
         loss = kl + recon_loss
         logs = {
-            "image_loss": image_recon_loss,
+            "im_loss": image_recon_loss,
             "ce_loss": ce_recon_loss,
-            "recon_loss": recon_loss,
-            "kl": kl,
+            "kl_loss": kl,
             "loss": loss,
         }
 
