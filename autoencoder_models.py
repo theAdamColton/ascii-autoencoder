@@ -3,34 +3,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import bpdb
 
-from generic_nn_modules import Flatten, GenericUnflatten
-
-
-class BilinearConvUpsample(nn.Module):
-    """
-    Multiplies the resolution by 2
-    """
-
-    def __init__(self, in_channels, out_channels, kernel_size=5, scale: float = 2.0):
-        super().__init__()
-
-        # This sets the zero_pad so that the conv2d layer will have
-        # the same output width and height as its input
-        assert kernel_size % 2 == 1
-        zero_pad = kernel_size // 2
-
-        self.layers = nn.Sequential(
-            nn.Upsample(scale_factor=scale, mode="bilinear"),
-            nn.Conv2d(
-                in_channels, out_channels, kernel_size, stride=1, padding=zero_pad
-            ),
-            nn.ReLU(),
-            nn.BatchNorm2d(out_channels),
-        )
-
-    def forward(self, x):
-        return self.layers.forward(x)
-
+from generic_nn_modules import Flatten, GenericUnflatten, BilinearConvUpsample, Conv2dDownscale
 
 class Decoder(nn.Module):
     """Decoder with a single linear input layer, multiple
@@ -71,34 +44,6 @@ class Decoder(nn.Module):
     def forward(self, z):
         out = self.decoder(z)
         return out
-
-
-class Conv2dDownscale(nn.Module):
-    """
-    Halves the input res
-    """
-
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-
-        kernel_size = 5
-        stride = 2
-        zero_padding = 2
-
-        self.layers = nn.Sequential(
-            nn.Conv2d(
-                in_channels,
-                out_channels,
-                kernel_size,
-                stride=stride,
-                padding=zero_padding,
-            ),
-            nn.ReLU(),
-            nn.BatchNorm2d(out_channels),
-        )
-
-    def forward(self, x):
-        return self.layers.forward(x)
 
 
 class VariationalEncoder(nn.Module):

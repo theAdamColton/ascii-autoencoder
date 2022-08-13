@@ -22,8 +22,10 @@ dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
 from font_renderer import FontRenderer
 
+from base_vae import BaseVAE
 
-class LightningOneHotVAE(pl.LightningModule):
+
+class LightningOneHotVAE(BaseVAE):
     """
     VariationalAutoEncoder LightningModule for one hot encoding along n_channels.
     """
@@ -53,7 +55,7 @@ class LightningOneHotVAE(pl.LightningModule):
         self.image_recon_loss_coeff = image_recon_loss_coeff
 
         self.l1_loss = torch.nn.L1Loss()
-        self.mse_loss = torch.nn.MSELoss(size_average=False)
+        self.mse_loss = torch.nn.MSELoss(size_average=True)
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
         self.bce_loss = torch.nn.BCELoss()
         self.ssim_loss = SSIM()
@@ -69,35 +71,6 @@ class LightningOneHotVAE(pl.LightningModule):
             zoom=self.font_renderer.zoom,
             device=torch.device("cuda"),
         )
-
-    def train_dataloader(self):
-        return self.train_dataloader_obj
-
-    def val_dataloader(self):
-        return self.val_dataloader_obj
-
-    def forward(self, x):
-        """Returns recon_x, mu, log_var"""
-        mu, log_var = self.encoder(x)
-        p, q, z = self.sample(mu, log_var)
-        recon_x = self.decoder(z)
-        return recon_x, mu, log_var
-
-    def _run_step(self, x):
-        """Returns z, recon_x, p, q"""
-        mu, log_var = self.encoder(x)
-        p, q, z = self.sample(mu, log_var)
-        return z, self.decoder(z), p, q
-
-    def sample(self, mu, log_var):
-        """The reparameterization trick
-        returns p, q, z
-        """
-        std = torch.exp(log_var / 2)
-        p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
-        q = torch.distributions.Normal(mu, std)
-        z = q.rsample()
-        return p, q, z
 
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
@@ -185,36 +158,3 @@ class LightningOneHotVAE(pl.LightningModule):
 
             self.train()
 
-    def training_step(self, batch, batch_idx):
-        """Returns loss"""
-        x, label = batch
-        loss, logs = self.step(x, batch_idx)
-
-        self.log_dict(
-            {f"t_{k}": v for k, v in logs.items()},
-            on_step=True,
-            on_epoch=False,
-            prog_bar=True,
-        )
-
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        x, label = batch
-        loss, logs = self.step(x, batch_idx)
-        self.log_dict(
-            {f"v_{k}": v for k, v in logs.items()},
-            on_step=True,
-            on_epoch=False,
-            prog_bar=True,
-        )
-        return loss
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), self.lr)
-        return optimizer
-
-    def init_weights(self, std=0.15):
-        """If std is set above ~0.3, there are overflow errors on the first iteration"""
-        for _, param in self.named_parameters():
-            param.data.normal_(mean=0.0, std=std)

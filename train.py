@@ -17,7 +17,7 @@ dirname = path.dirname(__file__)
 sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
 from font_renderer import ContinuousFontRenderer
 
-from autoenc_trainers import LightningOneHotVAE
+from ascii_vae_trainer import LightningOneHotVAE
 
 
 def get_training_args():
