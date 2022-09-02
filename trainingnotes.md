@@ -70,3 +70,44 @@ V    V         V          }' `\ /' `{          V         V    V    |   ` [ ``` `
 V    V         V          }' `\ /' `{          V         V    V    |       ]                         ] ] ] ]                  ]]]] ]
 ```
 
+
+### Commit: 20717f245465d08bf7b58b392e87e0b4ec8e6f74
+```
+bpython train.py --font-res 9 --font-zoom 21 --ce-recon-loss-scale 1.0 --space-deemph 1e5 --kl-coeff 0.1 --image-recon-loss-coeff 4e1 --n-workers 16 --validation-prop 0.025 --validation-every 100 --learning-rate 5e-4 -b 164 -n 10000 --run-name models/image_512 --print-every 10 --gumbel-tau 0.2
+```
+
+* Trains well. The image loss definately makes a difference compared to the model that was trained only with the ce loss
+
+* Images are from 2200 epochs on 97.5% of the data. Training loss went down to about 2.1. Validation loss was about 3.0
+
+* Increasing the KL coefficient should force the model to overfit less
+
+```
+                                                                   |                                     _.__
+                                                                   |                                 ___._______.
+                                _.____                             |                               _______________
+                             _.'      '_.                          |                           ._______'__'__/___.
+                         _.-'       _.'  \                         |                         ____________'.-'-\|.\|
+                       _'___     _.'      |                        |                       .'_'___:`_'\_.|.'`...<||
+                     .'     '-.-'         L                        |                      ,_'G_.`_|'.|`.:'.'--'_O||
+                    /          \          |                        |                     ..:|.:.:#L\:.:|d\|--'-'.||
+                   |     __     |         L                        |                     |||`;Ag$\"$$\|"U.::.`-;||||
+                   |   .x$$x.   L         |                        |                     |||':.$"$#$$|.|.\-.._'.-|||
+                   |   |%$$$|   |         |                        |                     |||.s|$$U|$#$'|::-.'.''-|||
+                   |   |%%$$|   L         |                        |                     |||/J|%%$$%%%JJK.:.-:.-.L|
+                   |   '%%%?'   |         .\                       |                     ||`||%%;%|%%/||8^-|'.'-LL||
+                    \          /|      .-                          |                     |:|V:%|%.%-"|)'..-'.-.'||L.
+                     '.__  __.' |   .-    Pr                       |                     ``|'.._..%.#|:':----,:_.jrg9
+                         ''      \.-      59                       |                      ``|-`.;.:-'..|...-..^--5r9
+                                                                   |                       ```` ```.`..`.-----"-`-
+                                                                   |                               ````.------
+                                                                   |                                      -
+```
+
+
+### Image Loss
+
+
+MSE and L1 loss functions are poor approximations of what a human would automatically discern as 'loss' between input and reconstruction. 
+
+Humans tend to blur together the parallel lines, picking out shapes and patterns from the disjoint characters in the image. Using discrete methods, you could recreate these patterns by using pixel dilation and erosion. It is hard to think of a contiuous transformation that would be able to pull out the 2D shapes from the disjoint pixel regions. 

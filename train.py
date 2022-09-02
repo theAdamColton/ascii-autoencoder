@@ -7,6 +7,7 @@ import argparse
 import bpdb
 from os import path
 import sys
+import datetime
 
 
 dirname = path.dirname(__file__)
@@ -198,8 +199,6 @@ def main():
             gumbel_tau=args.gumbel_tau,
         )
         vae.init_weights(std=0.10)
-        torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
-        torchinfo.summary(vae.decoder, input_size=(7, 512))
 
     else:
         vae = LightningOneHotVAE.load_from_checkpoint(
@@ -218,11 +217,15 @@ def main():
         vae.gumbel_tau = args.gumbel_tau
         print("Resuming training")
 
+    torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
+    torchinfo.summary(vae.decoder, input_size=(7, 512))
+
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
 
+    dt_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M")
+
     model_checkpoint = ModelCheckpoint(
-        dirpath=args.run_name + "checkpoint/",
-        every_n_epochs=40,
+        dirpath="{}checkpoint/{}".format(args.run_name, dt_string),
     )
 
     trainer = pl.Trainer(
@@ -235,6 +238,8 @@ def main():
         logger=logger,
         log_every_n_steps=10,
     )
+
+    #trainer.tune(vae)
 
     trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
 
