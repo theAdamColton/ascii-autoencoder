@@ -3,7 +3,13 @@ import torch.nn.functional as F
 import torch.nn as nn
 import bpdb
 
-from generic_nn_modules import Flatten, GenericUnflatten, BilinearConvUpsample, Conv2dDownscale
+from generic_nn_modules import (
+    Flatten,
+    GenericUnflatten,
+    BilinearConvUpsample,
+    Conv2dDownscale,
+)
+
 
 class Decoder(nn.Module):
     """Decoder with a single linear input layer, multiple

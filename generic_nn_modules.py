@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class Conv2dDownscale(nn.Module):
     """
     Halves the input res
@@ -28,6 +29,7 @@ class Conv2dDownscale(nn.Module):
     def forward(self, x):
         return self.layers.forward(x)
 
+
 class BilinearConvUpsample(nn.Module):
     """
     Multiplies the resolution by 2
@@ -52,7 +54,6 @@ class BilinearConvUpsample(nn.Module):
 
     def forward(self, x):
         return self.layers.forward(x)
-
 
 
 class Flatten(nn.Module):

@@ -42,6 +42,7 @@ class LightningOneHotVAE(BaseVAE):
         image_recon_loss_coeff=1.0,
         kl_coeff=1.0,
         gumbel_tau=0.9,
+        device=torch.device('cuda'),
     ):
         super().__init__()
 
@@ -69,16 +70,32 @@ class LightningOneHotVAE(BaseVAE):
         self.discrete_font_renderer = FontRenderer(
             res=self.font_renderer.font_res,
             zoom=self.font_renderer.zoom,
-            device=torch.device("cuda"),
+            device=device,
         )
-
 
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
         recon_image = self.font_renderer.render(x_hat)
-        recon_loss = self.mse_loss(
-            base_image.unsqueeze(1), recon_image.unsqueeze(1)
-        )
+
+        # This step extentuates the edges on both images. This is intended to
+        # reproduce the gestalt effect that humans experience when looking at a
+        # segmented edge with a common shape.
+
+        # Laplacian edge detector kernel
+        # shape: 1, 1, 3, 3
+#        kernel = torch.Tensor(
+#                [[-1, -1, -1],
+#                 [-1,  8, -1],
+#                 [-1, -1, -1]]).unsqueeze(0).unsqueeze(0)
+
+        base_image_e = F.conv2d(base_image.unsqueeze(0), kernel, padding=1)
+        recon_image_e = F.conv2d(recon_image.unsqueeze(0), kernel, padding=1)
+
+        import vis
+        vis.side_by_side(base_image_e[0][0], recon_image_e[0][0])
+        bpdb.set_trace()
+
+        recon_loss = self.mse_loss(base_image.unsqueeze(1), recon_image.unsqueeze(1))
         recon_loss *= self.image_recon_loss_coeff
         return recon_loss
 
@@ -155,4 +172,3 @@ class LightningOneHotVAE(BaseVAE):
                 print(label)
 
             self.train()
-

@@ -86,7 +86,7 @@ def main(stdscr, args):
             if time.time() > next_frame:
                 next_frame = time.time() + 1 / args.frame_rate
 
-            x_scaled = np.log10(x**args.smooth_factor + 1) * 3.322
+            x_scaled = np.log10(x ** args.smooth_factor + 1) * 3.322
             with torch.no_grad():
                 interp_embedding = x_scaled * embedding2 + (1 - x) * embedding1
                 decoded = autoenc.decoder(interp_embedding)

@@ -25,10 +25,11 @@ from font_renderer import FontRenderer
 
 class BaseVAE(pl.LightningModule):
     """
-    Generic VariationalAutoEncoder LightningModule 
+    Generic VariationalAutoEncoder LightningModule
 
     Must inherit step(), self.lr, self.encoder, self.decoder
     """
+
     def train_dataloader(self):
         return self.train_dataloader_obj
 
@@ -73,7 +74,7 @@ class BaseVAE(pl.LightningModule):
         return ce_recon_loss
 
     def step(self, x, batch_idx):
-        raise NotImplementedError('Inheriting class must implement')
+        raise NotImplementedError("Inheriting class must implement")
 
     def training_step(self, batch, batch_idx):
         """Returns loss"""

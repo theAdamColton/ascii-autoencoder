@@ -145,13 +145,18 @@ def main():
         res=64, validation_prop=args.validation_prop, datapath=args.datapath
     )
     validation_dataset = AsciiArtDataset(
-        res=64, validation_prop=args.validation_prop, is_validation_dataset=True
+        res=64, validation_prop=args.validation_prop, is_validation_dataset=args.validation_prop > 0.0
     )
+
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
 
     if args.should_char_weight:
         character_frequencies = dataset.calculate_character_counts()
         char_weights = 1.0 / (character_frequencies + 1)
-        char_weights = char_weights**args.char_weights_scaling
+        char_weights = char_weights ** args.char_weights_scaling
     else:
         char_weights = torch.ones(95)
 
@@ -162,7 +167,7 @@ def main():
     if args.dataset_to_gpu:
         args.n_workers = 0
         print("Loading data to gpu...")
-        dataset = dataset.to_tensordataset(device=torch.device("cuda"))
+        dataset = dataset.to_tensordataset(device=device)
 
     dataloader = DataLoader(
         dataset,
@@ -182,7 +187,9 @@ def main():
 
     # The character font size of each character in the image
     font_renderer = ContinuousFontRenderer(
-        res=args.font_res, device=torch.device("cuda"), zoom=args.font_zoom,
+        res=args.font_res,
+        device=device,
+        zoom=args.font_zoom,
     )
 
     if not args.load:
@@ -197,6 +204,7 @@ def main():
             image_recon_loss_coeff=args.image_recon_loss_coeff,
             kl_coeff=args.kl_coeff,
             gumbel_tau=args.gumbel_tau,
+            device=device,
         )
         vae.init_weights(std=0.10)
 
@@ -230,16 +238,16 @@ def main():
 
     trainer = pl.Trainer(
         max_epochs=args.n_epochs,
-        accelerator="gpu",
-#        precision=16,
-        callbacks=[StochasticWeightAveraging(), model_checkpoint],
+        accelerator="gpu" if device.type == "cuda" else "cpu",
+        #        precision=16,
+        callbacks=[StochasticWeightAveraging(swa_lrs=0.05), model_checkpoint],
         check_val_every_n_epoch=args.validation_every,
         auto_lr_find=True,
         logger=logger,
         log_every_n_steps=10,
     )
 
-    #trainer.tune(vae)
+    # trainer.tune(vae)
 
     trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
 
