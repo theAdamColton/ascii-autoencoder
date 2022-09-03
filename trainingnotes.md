@@ -104,6 +104,22 @@ bpython train.py --font-res 9 --font-zoom 21 --ce-recon-loss-scale 1.0 --space-d
                                                                    |                                      -
 ```
 
+### Running edge detection on input and reconstructed images
+
+* Implemented in commit 66ea1d618d27888f547dbd52c3ca9e1d9b1cb7c6
+* Didn't function very well, the edges didn't become joined enough. Ideally, shapes like this should have all of the near segments joined together, to make one continuous shape:
+```
+                  _---------_
+                 /           |                  
+                /            \                 
+               /              |
+              /               |
+              -______________/
+```
+
+<p align='center'>
+<img src='./figures/66ea1d618d27888f547dbd52c3ca9e1d9b1cb7c6.png' width='400'>
+</p>
 
 ### Image Loss
 
