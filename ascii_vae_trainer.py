@@ -8,6 +8,7 @@ import sys
 from os import path
 
 from autoencoder_models import VariationalEncoder, Decoder
+from edge_detector import EdgeDetector
 from ssim import SSIM
 import vis
 
@@ -72,6 +73,7 @@ class LightningOneHotVAE(BaseVAE):
             zoom=self.font_renderer.zoom,
             device=device,
         )
+        self.edge_detector = EdgeDetector(device=device, res=15, sigma=0.2)
 
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
@@ -81,21 +83,14 @@ class LightningOneHotVAE(BaseVAE):
         # reproduce the gestalt effect that humans experience when looking at a
         # segmented edge with a common shape.
 
-        # Laplacian edge detector kernel
-        # shape: 1, 1, 3, 3
-#        kernel = torch.Tensor(
-#                [[-1, -1, -1],
-#                 [-1,  8, -1],
-#                 [-1, -1, -1]]).unsqueeze(0).unsqueeze(0)
+        base_image_e = self.edge_detector(base_image)
+        recon_image_e = self.edge_detector(recon_image)
 
-        base_image_e = F.conv2d(base_image.unsqueeze(0), kernel, padding=1)
-        recon_image_e = F.conv2d(recon_image.unsqueeze(0), kernel, padding=1)
+       # import vis
+       # vis.side_by_side(base_image_e[0][0], recon_image_e[0][0])
+       # bpdb.set_trace()
 
-        import vis
-        vis.side_by_side(base_image_e[0][0], recon_image_e[0][0])
-        bpdb.set_trace()
-
-        recon_loss = self.mse_loss(base_image.unsqueeze(1), recon_image.unsqueeze(1))
+        recon_loss = self.mse_loss(base_image_e, recon_image_e)
         recon_loss *= self.image_recon_loss_coeff
         return recon_loss
 
@@ -157,7 +152,9 @@ class LightningOneHotVAE(BaseVAE):
                 # Renders images
                 base_image = self.font_renderer.render(x.unsqueeze(0))
                 recon_image = self.font_renderer.render(x_recon_gumbel)
-                side_by_side = torch.concat((base_image, recon_image), dim=2)
+                base_image_e = self.edge_detector(base_image)
+                recon_image_e = self.edge_detector(recon_image)
+                side_by_side = torch.concat((base_image_e, recon_image_e), dim=2).squeeze(0)
                 # Logs images
                 self.logger.experiment.add_image(
                     "epoch {}".format(self.current_epoch), side_by_side, 0
