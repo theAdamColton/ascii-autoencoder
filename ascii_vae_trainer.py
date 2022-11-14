@@ -73,7 +73,9 @@ class LightningOneHotVAE(BaseVAE):
             zoom=self.font_renderer.zoom,
             device=device,
         )
-        self.edge_detector = EdgeDetector(device=device, res=15, sigma=0.2)
+        self.should_edge_detect = False
+        if self.should_edge_detect:
+            self.edge_detector = EdgeDetector(device=device, res=11, sigma=0.9)
 
     def calculate_image_loss(self, x_hat, x):
         base_image = self.font_renderer.render(x)
@@ -83,14 +85,14 @@ class LightningOneHotVAE(BaseVAE):
         # reproduce the gestalt effect that humans experience when looking at a
         # segmented edge with a common shape.
 
-        base_image_e = self.edge_detector(base_image)
-        recon_image_e = self.edge_detector(recon_image)
+        #base_image_e = self.edge_detector(base_image)
+        #recon_image_e = self.edge_detector(recon_image)
 
-       # import vis
-       # vis.side_by_side(base_image_e[0][0], recon_image_e[0][0])
-       # bpdb.set_trace()
+        #import vis
+        #vis.side_by_side(base_image_e[0][0], recon_image_e[0][0])
+        #bpdb.set_trace()
 
-        recon_loss = self.mse_loss(base_image_e, recon_image_e)
+        recon_loss = self.mse_loss(base_image, recon_image)
         recon_loss *= self.image_recon_loss_coeff
         return recon_loss
 
@@ -148,13 +150,19 @@ class LightningOneHotVAE(BaseVAE):
                 # Reconstructs the item
                 x_recon, _, _ = self.forward(x.unsqueeze(0))
                 x_recon_gumbel = gumbel_softmax(x_recon, dim=1, tau=self.gumbel_tau)
+                # converts to one hot 
+                recon_one_hot = F.one_hot(x_recon.argmax(dim=1), 95).movedim(3, 1).to(torch.float32)
 
                 # Renders images
                 base_image = self.font_renderer.render(x.unsqueeze(0))
                 recon_image = self.font_renderer.render(x_recon_gumbel)
-                base_image_e = self.edge_detector(base_image)
-                recon_image_e = self.edge_detector(recon_image)
-                side_by_side = torch.concat((base_image_e, recon_image_e), dim=2).squeeze(0)
+                recon_one_hot_image = self.font_renderer.render(recon_one_hot)
+
+                if self.should_edge_detect:
+                    base_image = self.edge_detector(base_image)
+                    recon_image = self.edge_detector(recon_image)
+                side_by_side = torch.concat((base_image, recon_image, recon_one_hot_image), dim=2).squeeze(0)
+                side_by_side = side_by_side.unsqueeze(0)
                 # Logs images
                 self.logger.experiment.add_image(
                     "epoch {}".format(self.current_epoch), side_by_side, 0
@@ -162,7 +170,7 @@ class LightningOneHotVAE(BaseVAE):
 
                 x_str = ascii_util.one_hot_embedded_matrix_to_string(x)
                 x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(
-                    x_recon_gumbel.squeeze(0)
+                    recon_one_hot.squeeze(0)
                 )
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)
