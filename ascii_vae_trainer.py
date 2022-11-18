@@ -1,4 +1,5 @@
 import torch
+import math
 import torch.nn.functional as F
 from torch.nn.functional import gumbel_softmax
 import pytorch_lightning as pl
@@ -42,7 +43,7 @@ class LightningOneHotVAE(BaseVAE):
         ce_recon_loss_scale=1.0,
         image_recon_loss_coeff=1.0,
         kl_coeff=1.0,
-        gumbel_tau=0.9,
+        gumbel_tau_r=5e-5,
         device=torch.device('cuda'),
     ):
         super().__init__()
@@ -66,8 +67,8 @@ class LightningOneHotVAE(BaseVAE):
         self.save_hyperparameters(
             ignore=["train_dataloader", "val_dataloader", "font_renderer"]
         )
-        self.random_roll = augmentation.RandomRoll(15, sigma=5)
-        self.gumbel_tau = gumbel_tau
+        self.random_roll = augmentation.RandomRoll(0, sigma=5)
+        self.gumbel_tau_r = gumbel_tau_r
         self.discrete_font_renderer = FontRenderer(
             res=self.font_renderer.font_res,
             zoom=self.font_renderer.zoom,
@@ -105,17 +106,22 @@ class LightningOneHotVAE(BaseVAE):
         """Returns loss, logs"""
         # Will augment the input batch
         x = self.random_roll(x)
-        z, x_hat, p, q = self._run_step(x)
+        z, x_hat_log, p, q = self._run_step(x)
+
+        # Sets current gumbel_tau
+        # Based on the VAE tested here: https://arxiv.org/pdf/1611.01144.pdf
+        self.gumbel_tau = max(0.25, math.exp(-self.gumbel_tau_r * self.current_epoch))
+        x_hat_gumbel = gumbel_softmax(x_hat_log, dim=1, tau=self.gumbel_tau, hard=True)
 
         # CE Loss between original categorical vectors and reconstructed vectors
         if self.ce_recon_loss_scale > 0.0:
-            ce_recon_loss = self.calculate_ce_loss(x_hat, x)
+            # Should do ce loss with gumbel?
+            ce_recon_loss = self.calculate_ce_loss(x_hat_gumbel, x)
         else:
             ce_recon_loss = 0.0
         # Image reconstruction loss
         if self.image_recon_loss_coeff > 0.0:
             # Gumbel step, with a non discrete forward, and backwards
-            x_hat_gumbel = gumbel_softmax(x_hat, dim=1, tau=self.gumbel_tau)
             image_recon_loss = self.calculate_image_loss(x_hat_gumbel, x)
         else:
             image_recon_loss = 0.0
@@ -132,6 +138,7 @@ class LightningOneHotVAE(BaseVAE):
             "ce_loss": ce_recon_loss,
             "kl_loss": kl,
             "loss": loss,
+            "gumbel_tau": self.gumbel_tau,
         }
 
         return loss, logs
@@ -150,18 +157,15 @@ class LightningOneHotVAE(BaseVAE):
                 # Reconstructs the item
                 x_recon, _, _ = self.forward(x.unsqueeze(0))
                 x_recon_gumbel = gumbel_softmax(x_recon, dim=1, tau=self.gumbel_tau)
-                # converts to one hot 
-                recon_one_hot = F.one_hot(x_recon.argmax(dim=1), 95).movedim(3, 1).to(torch.float32)
 
                 # Renders images
                 base_image = self.font_renderer.render(x.unsqueeze(0))
                 recon_image = self.font_renderer.render(x_recon_gumbel)
-                recon_one_hot_image = self.font_renderer.render(recon_one_hot)
 
                 if self.should_edge_detect:
                     base_image = self.edge_detector(base_image)
                     recon_image = self.edge_detector(recon_image)
-                side_by_side = torch.concat((base_image, recon_image, recon_one_hot_image), dim=2).squeeze(0)
+                side_by_side = torch.concat((base_image, recon_image), dim=2).squeeze(0)
                 side_by_side = side_by_side.unsqueeze(0)
                 # Logs images
                 self.logger.experiment.add_image(
@@ -170,7 +174,7 @@ class LightningOneHotVAE(BaseVAE):
 
                 x_str = ascii_util.one_hot_embedded_matrix_to_string(x)
                 x_recon_str = ascii_util.one_hot_embedded_matrix_to_string(
-                    recon_one_hot.squeeze(0)
+                    x_recon_gumbel.squeeze(0)
                 )
                 side_by_side = ascii_util.horizontal_concat(x_str, x_recon_str)
                 print(side_by_side)

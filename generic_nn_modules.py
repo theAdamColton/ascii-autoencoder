@@ -22,7 +22,7 @@ class Conv2dDownscale(nn.Module):
                 stride=stride,
                 padding=zero_padding,
             ),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
@@ -48,7 +48,7 @@ class BilinearConvUpsample(nn.Module):
             nn.Conv2d(
                 in_channels, out_channels, kernel_size, stride=1, padding=zero_pad
             ),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.BatchNorm2d(out_channels),
         )
 

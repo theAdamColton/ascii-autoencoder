@@ -54,6 +54,11 @@ def get_training_args():
         dest="run_name",
         default="vae",
     )
+    parser.add_argument(
+        "--log-name",
+        dest="log_name",
+        default="run",
+    )
 
     # Dataset args
     parser.add_argument(
@@ -127,10 +132,10 @@ def get_training_args():
     )
 
     parser.add_argument(
-        "--gumbel-tau",
-        dest="gumbel_tau",
+        "--gumbel-tau-r",
+        dest="gumbel_tau_r",
         type=float,
-        default=0.9,
+        default=7e-5,
     )
 
     args = parser.parse_args()
@@ -203,7 +208,7 @@ def main():
             ce_recon_loss_scale=args.ce_recon_loss_scale,
             image_recon_loss_coeff=args.image_recon_loss_coeff,
             kl_coeff=args.kl_coeff,
-            gumbel_tau=args.gumbel_tau,
+            gumbel_tau_r=args.gumbel_tau_r,
             device=device,
         )
         vae.init_weights(std=0.10)
@@ -222,13 +227,13 @@ def main():
         vae.image_recon_loss_coeff = args.image_recon_loss_coeff
         vae.kl_coeff = args.kl_coeff
         vae.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
-        vae.gumbel_tau = args.gumbel_tau
+        vae.gumbel_tau_r = args.gumbel_tau_r
         print("Resuming training")
 
     torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
     torchinfo.summary(vae.decoder, input_size=(7, 512))
 
-    logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/")
+    logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/", name=args.log_name)
 
     dt_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M")
 
@@ -245,6 +250,7 @@ def main():
         auto_lr_find=True,
         logger=logger,
         log_every_n_steps=10,
+        precision=16,
     )
 
     # trainer.tune(vae)

@@ -1,7 +1,6 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-import bpdb
 
 from generic_nn_modules import (
     Flatten,
@@ -15,7 +14,10 @@ class Decoder(nn.Module):
     """Decoder with a single linear input layer, multiple
     BilinearConvUpsample upscaling layers, and batch normalization. Works on a 64x64
     image output size,
-    Outputs are scaled by the softmax function to be have a sum of 1.
+
+
+    Outputs are scaled by the softmax function to be have a sum of 1,
+    Log probabilities are returned.
     """
 
     def __init__(self, n_channels=95, z_dim=512, kernel_size=5):
@@ -27,13 +29,13 @@ class Decoder(nn.Module):
         self.decoder = nn.Sequential(
             # Input size comments assume an input z_dim of 256
             # Input: batch_size by 256
-            nn.Linear(z_dim, z_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(z_dim),
+            #nn.Linear(z_dim, z_dim),
+            #nn.ReLU(),
+            #nn.BatchNorm1d(z_dim),
             # Input: batch_size by 256
-            nn.Linear(z_dim, z_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(z_dim),
+            #nn.Linear(z_dim, z_dim),
+            #nn.ReLU(),
+            #nn.BatchNorm1d(z_dim),
             GenericUnflatten(input_channels, input_side_res, input_side_res),
             # Input: batch_size by 8 by 8 by 8
             BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=3 / 2),
@@ -46,10 +48,12 @@ class Decoder(nn.Module):
             # Input: batch_size by 64 by 64 by 64
             nn.Conv2d(64, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
             # Output: batch_size by 95 by 64 by 64
+            nn.Softmax2d()
         )
 
     def forward(self, z):
-        out = self.decoder(z)
+        # returns the log probability
+        out = torch.log(self.decoder(z) + 0.0001)
         return out
 
 
@@ -87,8 +91,8 @@ class VariationalEncoder(nn.Module):
             # Input: batch_size x 8 x 8 x 8
             Flatten(),
             # Input: batch_size x 512
-            nn.Linear(z_dim, z_dim),
-            nn.ReLU(),
+            #nn.Linear(z_dim, z_dim),
+            #nn.ReLU(),
             nn.BatchNorm1d(z_dim),
         )
 
