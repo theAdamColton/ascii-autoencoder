@@ -47,8 +47,10 @@ class Decoder(nn.Module):
             BilinearConvUpsample(48, 64, kernel_size=kernel_size),
             # Input: batch_size by 64 by 64 by 64
             nn.Conv2d(64, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
-            # Output: batch_size by 95 by 64 by 64
-            BilinearConvUpsample(95, 95, kernel_size=kernel_size, scale=1.0),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(95),
+            # Input: batch_size by 95 by 64 by 64
+            nn.Conv2d(n_channels, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
             nn.Softmax2d()
         )
 

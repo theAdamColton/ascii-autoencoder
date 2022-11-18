@@ -99,7 +99,7 @@ class LightningOneHotVAE(BaseVAE):
 
         # Sets current gumbel_tau
         # Based on the VAE tested here: https://arxiv.org/pdf/1611.01144.pdf
-        self.gumbel_tau = max(0.25, math.exp(-self.gumbel_tau_r * self.current_epoch))
+        self.gumbel_tau = max(0.5, math.exp(-self.gumbel_tau_r * self.current_epoch))
         x_hat_gumbel = gumbel_softmax(x_hat_log, dim=1, tau=self.gumbel_tau, hard=True)
 
         # CE Loss between original categorical vectors and reconstructed vectors
