@@ -29,16 +29,16 @@ class Decoder(nn.Module):
         self.decoder = nn.Sequential(
             # Input size comments assume an input z_dim of 256
             # Input: batch_size by 256
-            #nn.Linear(z_dim, z_dim),
-            #nn.ReLU(),
-            #nn.BatchNorm1d(z_dim),
+            nn.Linear(z_dim, z_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(z_dim),
             # Input: batch_size by 256
             #nn.Linear(z_dim, z_dim),
             #nn.ReLU(),
             #nn.BatchNorm1d(z_dim),
             GenericUnflatten(input_channels, input_side_res, input_side_res),
             # Input: batch_size by 8 by 8 by 8
-            BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=3 / 2),
+            BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=3/2),
             # Input batch_size by 16 by 12 by 12
             BilinearConvUpsample(16, 32, kernel_size=kernel_size, scale=4 / 3),
             # Input: batch_size by 32 by 16 by 16
@@ -48,6 +48,7 @@ class Decoder(nn.Module):
             # Input: batch_size by 64 by 64 by 64
             nn.Conv2d(64, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
             # Output: batch_size by 95 by 64 by 64
+            BilinearConvUpsample(95, 95, kernel_size=kernel_size, scale=1.0),
             nn.Softmax2d()
         )
 
@@ -66,7 +67,6 @@ class VariationalEncoder(nn.Module):
 
     def __init__(self, z_dim=512, kernel_size=5):
         super().__init__()
-        n_channels = 95
         assert z_dim == 512
 
         self.encoder = nn.Sequential(
@@ -93,7 +93,7 @@ class VariationalEncoder(nn.Module):
             # Input: batch_size x 512
             #nn.Linear(z_dim, z_dim),
             #nn.ReLU(),
-            nn.BatchNorm1d(z_dim),
+            #nn.BatchNorm1d(z_dim),
         )
 
         self.mu_layer = nn.Linear(z_dim, z_dim)

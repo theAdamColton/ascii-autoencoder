@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn.functional import gumbel_softmax
 import pytorch_lightning as pl
-import bpdb
 
 import sys
 from os import path

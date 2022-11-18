@@ -82,17 +82,6 @@ class LightningOneHotVAE(BaseVAE):
         base_image = self.font_renderer.render(x)
         recon_image = self.font_renderer.render(x_hat)
 
-        # This step extentuates the edges on both images. This is intended to
-        # reproduce the gestalt effect that humans experience when looking at a
-        # segmented edge with a common shape.
-
-        #base_image_e = self.edge_detector(base_image)
-        #recon_image_e = self.edge_detector(recon_image)
-
-        #import vis
-        #vis.side_by_side(base_image_e[0][0], recon_image_e[0][0])
-        #bpdb.set_trace()
-
         recon_loss = self.mse_loss(base_image, recon_image)
         recon_loss *= self.image_recon_loss_coeff
         return recon_loss
@@ -146,8 +135,7 @@ class LightningOneHotVAE(BaseVAE):
     def on_train_epoch_end(self):
         if self.current_epoch % self.print_every == 0:
             x, label = self.train_dataloader().dataset.get_random_training_item()
-            x = torch.Tensor(x)
-            x = x.to(self.device)
+            x = torch.Tensor(x).to(self.device)
             # Will random roll
             x = self.random_roll(x.unsqueeze(0)).squeeze(0)
 
@@ -155,7 +143,8 @@ class LightningOneHotVAE(BaseVAE):
                 self.eval()
 
                 # Reconstructs the item
-                x_recon, _, _ = self.forward(x.unsqueeze(0))
+                x_recon, _, _ = self.forward(x.to(self.dtype).unsqueeze(0))
+                x_recon = x_recon.type(torch.FloatTensor).to(self.device)
                 x_recon_gumbel = gumbel_softmax(x_recon, dim=1, tau=self.gumbel_tau)
 
                 # Renders images
