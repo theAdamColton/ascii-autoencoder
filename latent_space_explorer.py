@@ -4,16 +4,29 @@ Make sure that your terminal is large enough, or curses will throw an error
 """
 import random
 import torch
+from torch.utils.data import DataLoader
 import numpy as np
 import argparse
 from os import path
 import curses
 import time
+import sys
+
 import bpdb
 
-from dataset import AsciiArtDataset
-from autoencoder_models import VanillaAutoenc
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
+import ascii_util
 
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./ascii-dataset/"))
+from dataset import AsciiArtDataset
+
+dirname = path.dirname(__file__)
+sys.path.insert(0, path.join(dirname, "./python-pytorch-font-renderer/"))
+from font_renderer import ContinuousFontRenderer
+
+from ascii_vae_trainer import LightningOneHotVAE
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -37,33 +50,38 @@ def get_args():
         ),
     )
     parser.add_argument(
-        "--z-dim",
-        default=256,
-        dest="z_dim",
-        type=int,
+            "--cuda",
+            dest="cuda",
+            default=False,
     )
-
     return parser.parse_args()
 
 
 def main(stdscr, args):
-    dataset = AsciiArtDataset(res=64, embedding_kind="one-hot")
-    z_dim = args.z_dim
+    dataset = AsciiArtDataset(res=64)
 
-    cuda = torch.cuda.is_available()
+    cuda = args.cuda
     if cuda:
-        Tensor = torch.cuda.FloatTensor
         device = torch.device("cuda")
     else:
-        Tensor = torch.FloatTensor
         device = torch.device("cpu")
 
-    autoenc = VanillaAutoenc(n_channels=95, z_dim=z_dim)
-    autoenc.load_state_dict(
-        torch.load(
-            path.join(args.model_dir, "autoencoder.pth.tar"), map_location=device
-        )
+    dataloader = DataLoader(
+        dataset,
+        batch_size=1,
     )
+    font_renderer = ContinuousFontRenderer(
+        device=device,
+        res=9,
+        zoom=21,
+    )
+
+    autoenc = LightningOneHotVAE.load_from_checkpoint(
+        args.model_dir,
+        font_renderer=font_renderer,
+        train_dataloader=dataloader,
+    )
+
     autoenc.eval()
     if cuda:
         autoenc.cuda()
@@ -90,7 +108,8 @@ def main(stdscr, args):
             with torch.no_grad():
                 interp_embedding = x_scaled * embedding2 + (1 - x) * embedding1
                 decoded = autoenc.decoder(interp_embedding)
-                decoded_str = dataset.decode(decoded[0])
+                decoded_str = ascii_util.one_hot_embedded_matrix_to_string(decoded[0])
+
 
             pad.addstr(0, 0, decoded_str)
             pad.refresh(0, 0, 0, 0, 64, 64)
@@ -99,11 +118,11 @@ def main(stdscr, args):
 
 
 def get_random(device, dataset, encoder):
-    img = dataset[random.randint(0, len(dataset) - 1)][0]
+    img, label = dataset[random.randint(0, len(dataset) - 1)]
     img = torch.FloatTensor(img).to(device)
     img = img.unsqueeze(0)
     with torch.no_grad():
-        embedding = encoder(img)
+        embedding, logvar = encoder(img)
     return embedding
 
 
