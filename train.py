@@ -197,65 +197,55 @@ def main():
         zoom=args.font_zoom,
     )
 
-    if not args.load:
-        vae = LightningOneHotVAE(
-            font_renderer,
-            dataloader,
-            val_dataloader=val_dataloader,
-            lr=args.learning_rate,
-            print_every=args.print_every,
-            char_weights=char_weights,
-            ce_recon_loss_scale=args.ce_recon_loss_scale,
-            image_recon_loss_coeff=args.image_recon_loss_coeff,
-            kl_coeff=args.kl_coeff,
-            gumbel_tau_r=args.gumbel_tau_r,
-            device=device,
-        )
-        vae.init_weights(std=0.10)
-
-    else:
-        vae = LightningOneHotVAE.load_from_checkpoint(
-            args.load,
-            font_renderer=font_renderer,
-            train_dataloader=dataloader,
-            val_dataloader=val_dataloader,
-        )
-        vae.font_renderer = font_renderer
-        vae.lr = args.learning_rate
-        vae.print_every = args.print_every
-        vae.ce_recon_loss_scale = args.ce_recon_loss_scale
-        vae.image_recon_loss_coeff = args.image_recon_loss_coeff
-        vae.kl_coeff = args.kl_coeff
-        vae.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
-        vae.gumbel_tau_r = args.gumbel_tau_r
-        print("Resuming training")
-
-    torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
-    torchinfo.summary(vae.decoder, input_size=(7, 512))
-
     logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/", name=args.log_name)
 
     dt_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M")
-
     model_checkpoint = ModelCheckpoint(
         dirpath="{}checkpoint/{}".format(args.run_name, dt_string),
+        save_top_k=2,
+        monitor="t_loss",
     )
 
     trainer = pl.Trainer(
         max_epochs=args.n_epochs,
         accelerator="gpu" if device.type == "cuda" else "cpu",
-        #        precision=16,
-        callbacks=[StochasticWeightAveraging(swa_lrs=0.05), model_checkpoint],
+        callbacks=[StochasticWeightAveraging(swa_lrs=0.01), model_checkpoint],
         check_val_every_n_epoch=args.validation_every,
         auto_lr_find=True,
         logger=logger,
         log_every_n_steps=10,
         precision=16,
+        amp_backend="native",
     )
+
+    vae = LightningOneHotVAE(
+        font_renderer,
+        dataloader,
+        val_dataloader=val_dataloader,
+        lr=args.learning_rate,
+        print_every=args.print_every,
+        char_weights=char_weights,
+        ce_recon_loss_scale=args.ce_recon_loss_scale,
+        image_recon_loss_coeff=args.image_recon_loss_coeff,
+        kl_coeff=args.kl_coeff,
+        gumbel_tau_r=args.gumbel_tau_r,
+        device=device,
+    )
+    if not args.load:
+        vae.init_weights(std=0.10)
+    else:
+        print("Resuming training")
+
+    torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
+    torchinfo.summary(vae.decoder, input_size=(7, 512))
+
 
     # trainer.tune(vae)
 
-    trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
+    if not args.load:
+        trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
+    else:
+        trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader, ckpt_path=args.load)
 
 
 if __name__ in {"__main__", "__console__"}:

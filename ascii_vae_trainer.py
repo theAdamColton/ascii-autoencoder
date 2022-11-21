@@ -67,7 +67,7 @@ class LightningOneHotVAE(BaseVAE):
         self.save_hyperparameters(
             ignore=["train_dataloader", "val_dataloader", "font_renderer"]
         )
-        self.random_roll = augmentation.RandomRoll(0, sigma=5)
+        self.random_roll = augmentation.RandomRoll(5, sigma=5)
         self.gumbel_tau_r = gumbel_tau_r
         self.discrete_font_renderer = FontRenderer(
             res=self.font_renderer.font_res,

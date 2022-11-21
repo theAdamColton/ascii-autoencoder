@@ -32,7 +32,7 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-f", "--frame-rate", dest="frame_rate", type=float, default=10)
-    parser.add_argument("--steps", dest="steps", type=int, default=100)
+    parser.add_argument("--steps", dest="steps", type=int, default=200)
     parser.add_argument("--hold-length", dest="hold_length", default=0.5, type=float)
     parser.add_argument(
         "--smooth-factor",
