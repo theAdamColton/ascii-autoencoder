@@ -33,12 +33,12 @@ class Decoder(nn.Module):
             nn.ReLU(),
             nn.BatchNorm1d(z_dim),
             # Input: batch_size by 256
-            #nn.Linear(z_dim, z_dim),
-            #nn.ReLU(),
-            #nn.BatchNorm1d(z_dim),
+            # nn.Linear(z_dim, z_dim),
+            # nn.ReLU(),
+            # nn.BatchNorm1d(z_dim),
             GenericUnflatten(input_channels, input_side_res, input_side_res),
             # Input: batch_size by 8 by 8 by 8
-            BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=3/2),
+            BilinearConvUpsample(8, 16, kernel_size=kernel_size, scale=3 / 2),
             # Input batch_size by 16 by 12 by 12
             BilinearConvUpsample(16, 32, kernel_size=kernel_size, scale=4 / 3),
             # Input: batch_size by 32 by 16 by 16
@@ -50,8 +50,10 @@ class Decoder(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(95),
             # Input: batch_size by 95 by 64 by 64
-            nn.Conv2d(n_channels, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
-            nn.Softmax2d()
+            nn.Conv2d(
+                n_channels, n_channels, kernel_size, stride=1, padding=kernel_size // 2
+            ),
+            nn.Softmax2d(),
         )
 
     def forward(self, z):
@@ -93,9 +95,9 @@ class VariationalEncoder(nn.Module):
             # Input: batch_size x 8 x 8 x 8
             Flatten(),
             # Input: batch_size x 512
-            #nn.Linear(z_dim, z_dim),
-            #nn.ReLU(),
-            #nn.BatchNorm1d(z_dim),
+            # nn.Linear(z_dim, z_dim),
+            # nn.ReLU(),
+            # nn.BatchNorm1d(z_dim),
         )
 
         self.mu_layer = nn.Linear(z_dim, z_dim)

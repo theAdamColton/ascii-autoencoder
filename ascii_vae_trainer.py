@@ -44,7 +44,7 @@ class LightningOneHotVAE(BaseVAE):
         image_recon_loss_coeff=1.0,
         kl_coeff=1.0,
         gumbel_tau_r=5e-5,
-        device=torch.device('cuda'),
+        device=torch.device("cuda"),
     ):
         super().__init__()
 

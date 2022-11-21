@@ -150,18 +150,20 @@ def main():
         res=64, validation_prop=args.validation_prop, datapath=args.datapath
     )
     validation_dataset = AsciiArtDataset(
-        res=64, validation_prop=args.validation_prop, is_validation_dataset=args.validation_prop > 0.0
+        res=64,
+        validation_prop=args.validation_prop,
+        is_validation_dataset=args.validation_prop > 0.0,
     )
 
     if torch.cuda.is_available():
-        device = torch.device('cuda')
+        device = torch.device("cuda")
     else:
-        device = torch.device('cpu')
+        device = torch.device("cpu")
 
     if args.should_char_weight:
         character_frequencies = dataset.calculate_character_counts()
         char_weights = 1.0 / (character_frequencies + 1)
-        char_weights = char_weights ** args.char_weights_scaling
+        char_weights = char_weights**args.char_weights_scaling
     else:
         char_weights = torch.ones(95)
 
@@ -197,7 +199,9 @@ def main():
         zoom=args.font_zoom,
     )
 
-    logger = pl.loggers.TensorBoardLogger(args.run_name + "checkpoint/", name=args.log_name)
+    logger = pl.loggers.TensorBoardLogger(
+        args.run_name + "checkpoint/", name=args.log_name
+    )
 
     dt_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M")
     model_checkpoint = ModelCheckpoint(
@@ -239,13 +243,19 @@ def main():
     torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
     torchinfo.summary(vae.decoder, input_size=(7, 512))
 
-
     # trainer.tune(vae)
 
     if not args.load:
-        trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
+        trainer.fit(
+            model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader
+        )
     else:
-        trainer.fit(model=vae, train_dataloaders=dataloader, val_dataloaders=val_dataloader, ckpt_path=args.load)
+        trainer.fit(
+            model=vae,
+            train_dataloaders=dataloader,
+            val_dataloaders=val_dataloader,
+            ckpt_path=args.load,
+        )
 
 
 if __name__ in {"__main__", "__console__"}:

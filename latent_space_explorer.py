@@ -28,6 +28,7 @@ from font_renderer import ContinuousFontRenderer
 
 from ascii_vae_trainer import LightningOneHotVAE
 
+
 def get_args():
     parser = argparse.ArgumentParser()
 
@@ -50,9 +51,9 @@ def get_args():
         ),
     )
     parser.add_argument(
-            "--cuda",
-            dest="cuda",
-            default=False,
+        "--cuda",
+        dest="cuda",
+        default=False,
     )
     return parser.parse_args()
 
@@ -104,12 +105,11 @@ def main(stdscr, args):
             if time.time() > next_frame:
                 next_frame = time.time() + 1 / args.frame_rate
 
-            x_scaled = np.log10(x ** args.smooth_factor + 1) * 3.322
+            x_scaled = np.log10(x**args.smooth_factor + 1) * 3.322
             with torch.no_grad():
                 interp_embedding = x_scaled * embedding2 + (1 - x) * embedding1
                 decoded = autoenc.decoder(interp_embedding)
                 decoded_str = ascii_util.one_hot_embedded_matrix_to_string(decoded[0])
-
 
             pad.addstr(0, 0, decoded_str)
             pad.refresh(0, 0, 0, 0, 64, 64)
