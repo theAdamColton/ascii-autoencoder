@@ -53,13 +53,12 @@ class Decoder(nn.Module):
             nn.Conv2d(
                 n_channels, n_channels, kernel_size, stride=1, padding=kernel_size // 2
             ),
-            nn.Softmax2d(),
+            nn.LogSoftmax(dim=1),
         )
 
     def forward(self, z):
         # returns the log probability
-        out = torch.log(self.decoder(z) + 0.0001)
-        return out
+        return self.decoder(z)
 
 
 class VariationalEncoder(nn.Module):
