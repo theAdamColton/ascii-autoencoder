@@ -3,6 +3,8 @@ import torch.nn.functional as F
 from torch.nn.functional import gumbel_softmax
 import pytorch_lightning as pl
 
+import bpdb
+
 import sys
 from os import path
 
@@ -53,7 +55,6 @@ class BaseVAE(pl.LightningModule):
         returns p, q, z
         """
         std = torch.exp(log_var / 2)
-        std = std.clamp(0.0001)
         p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
         q = torch.distributions.Normal(mu, std)
         z = q.rsample()

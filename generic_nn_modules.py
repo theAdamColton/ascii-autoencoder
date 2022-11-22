@@ -22,12 +22,12 @@ class Conv2dDownscale(nn.Module):
                 stride=stride,
                 padding=zero_padding,
             ),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
     def forward(self, x):
-        return self.layers.forward(x)
+        return self.layers(x)
 
 
 class BilinearConvUpsample(nn.Module):
@@ -48,12 +48,12 @@ class BilinearConvUpsample(nn.Module):
             nn.Conv2d(
                 in_channels, out_channels, kernel_size, stride=1, padding=zero_pad
             ),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
     def forward(self, x):
-        return self.layers.forward(x)
+        return self.layers(x)
 
 
 class Flatten(nn.Module):

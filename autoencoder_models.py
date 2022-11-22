@@ -2,6 +2,9 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 
+import bpdb
+
+
 from generic_nn_modules import (
     Flatten,
     GenericUnflatten,
@@ -47,7 +50,7 @@ class Decoder(nn.Module):
             BilinearConvUpsample(48, 64, kernel_size=kernel_size),
             # Input: batch_size by 64 by 64 by 64
             nn.Conv2d(64, n_channels, kernel_size, stride=1, padding=kernel_size // 2),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.BatchNorm2d(95),
             # Input: batch_size by 95 by 64 by 64
             nn.Conv2d(
