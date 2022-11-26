@@ -127,3 +127,14 @@ bpython train.py --font-res 9 --font-zoom 21 --ce-recon-loss-scale 1.0 --space-d
 MSE and L1 loss functions are poor approximations of what a human would automatically discern as 'loss' between input and reconstruction. 
 
 Humans tend to blur together the parallel lines, picking out shapes and patterns from the disjoint characters in the image. Using discrete methods, you could recreate these patterns by using pixel dilation and erosion. It is hard to think of a contiuous transformation that would be able to pull out the 2D shapes from the disjoint pixel regions. 
+
+
+### commit 2e13fa90c6766b1ec426ab4be8738eed1ec82c18
+
+Trained for ~ 16,000 epochs in about 2 days. The model ./models/nov2022-hlrcheckpoint/25-11-2022_14-53/epoch=16309-step=358820.ckpt produces decent reconstructions. It was trained with moderately high kl loss. After about 18000 epochs, the model started producing only lank images when discretely rendered. The validation ce loss and validation image  loss changed to NAN. This can be seen in the ./models/nov2022-hlrcheckpoint/run/version_1 logs. I don't know why the image loss and ce loss became NAN, while the KL loss remained as expected.
+
+Looking at the saved images from this training, they were all plack pixels! This happens very suddenly at epoch 16815. It is weird to me that the `t_im_loss` looks like it continued taking it's usuall values, even though the model was logging all black images.
+
+Reloaded training from a good epoch, 16000. I lowered gumbel-tau which was 3e-5. Also increased batch size
+
+`bpython train.py --font-res 9 --font-zoom 21 --ce-recon-loss-scale 1.0 --kl-coeff 0.05 --image-recon-loss-coeff 50.0 --print-every 5 --run-name models/nov2022-hlr  --datapath ascii-dataset --n-workers 16 --learning-rate 4e-5 -b 186 -n 25000 --validation-prop 0.05 --validation-every 10 --space-deemph 100 --gumbel-tau-r 7e-6 --load models/nov2022-hlrcheckpoint/25-11-2022_14-53/epoch=16309-step=358820.ckpt`
