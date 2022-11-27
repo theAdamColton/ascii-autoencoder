@@ -220,6 +220,7 @@ def main():
         log_every_n_steps=10,
         precision=16,
         amp_backend="native",
+        gradient_clip_val=0.5,
     )
 
     vae = LightningOneHotVAE(

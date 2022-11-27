@@ -106,9 +106,9 @@ class VariationalEncoder(nn.Module):
         self.var_layer = nn.Linear(z_dim, z_dim)
 
     def forward(self, x):
-        """Returns mu, var"""
+        """Returns mu, log_var"""
         p_x = self.encoder(x)
         mu = self.mu_layer(p_x)
-        var = self.var_layer(p_x)
+        log_var = self.var_layer(p_x)
 
-        return mu, var
+        return mu, log_var

@@ -54,8 +54,8 @@ class BaseVAE(pl.LightningModule):
         """The reparameterization trick
         returns p, q, z
         """
+        log_var.clamp(-1e10, 5)
         std = torch.exp(log_var / 2)
-        std = std.clamp(1e-7)
         p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
         q = torch.distributions.Normal(mu, std)
         z = q.rsample()
