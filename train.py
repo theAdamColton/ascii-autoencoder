@@ -213,7 +213,7 @@ def main():
     trainer = pl.Trainer(
         max_epochs=args.n_epochs,
         accelerator="gpu" if device.type == "cuda" else "cpu",
-        callbacks=[StochasticWeightAveraging(swa_lrs=0.01), model_checkpoint],
+        callbacks=[StochasticWeightAveraging(swa_lrs=0.005), model_checkpoint],
         check_val_every_n_epoch=args.validation_every,
         auto_lr_find=True,
         logger=logger,

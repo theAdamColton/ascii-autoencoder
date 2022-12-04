@@ -54,26 +54,12 @@ class BaseVAE(pl.LightningModule):
         """The reparameterization trick
         returns p, q, z
         """
-        log_var.clamp(-1e10, 5)
+        log_var.clamp(-1e10, 15)
         std = torch.exp(log_var / 2)
         p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
         q = torch.distributions.Normal(mu, std)
         z = q.rsample()
         return p, q, z
-
-    def calculate_image_loss(self, x_hat, x):
-        base_image = self.font_renderer.render(x)
-        recon_image = self.font_renderer.render(x_hat)
-        image_recon_loss = self.mse_loss(
-            base_image.unsqueeze(1), recon_image.unsqueeze(1)
-        )
-        image_recon_loss *= self.image_recon_loss_coeff
-        return image_recon_loss
-
-    def calculate_ce_loss(self, x_hat, x):
-        ce_recon_loss = self.ce_loss(x_hat, x.argmax(dim=1))
-        ce_recon_loss *= self.ce_recon_loss_scale
-        return ce_recon_loss
 
     def step(self, x, batch_idx):
         raise NotImplementedError("Inheriting class must implement")

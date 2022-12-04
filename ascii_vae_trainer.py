@@ -60,6 +60,7 @@ class LightningOneHotVAE(BaseVAE):
         self.l1_loss = torch.nn.L1Loss()
         self.mse_loss = torch.nn.MSELoss(size_average=True)
         self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
+        self.nll_loss = torch.nn.NLLLoss2d(weight=char_weights)
         self.bce_loss = torch.nn.BCELoss()
         self.ssim_loss = SSIM()
         self.train_dataloader_obj = train_dataloader
@@ -91,6 +92,11 @@ class LightningOneHotVAE(BaseVAE):
         ce_recon_loss *= self.ce_recon_loss_scale
         return ce_recon_loss
 
+    def calculate_nll_loss(self, x_hat, x):
+        nll_loss = self.nll_loss(x_hat, x.argmax(dim=1))
+        nll_loss *= self.ce_recon_loss_scale
+        return nll_loss
+
     def step(self, x, batch_idx):
         """Returns loss, logs"""
         # Will augment the input batch
@@ -105,7 +111,7 @@ class LightningOneHotVAE(BaseVAE):
         # CE Loss between original categorical vectors and reconstructed vectors
         if self.ce_recon_loss_scale > 0.0:
             # Should do ce loss with gumbel?
-            ce_recon_loss = self.calculate_ce_loss(x_hat_gumbel, x)
+            ce_recon_loss = self.calculate_nll_loss(x_hat_log, x)
         else:
             ce_recon_loss = 0.0
         # Image reconstruction loss
