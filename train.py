@@ -41,6 +41,9 @@ def get_training_args():
     parser.add_argument(
         "--ce-recon-loss-scale", dest="ce_recon_loss_scale", default=0.1, type=float
     )
+    parser.add_argument(
+            "--ce-label-smoothing", dest="ce_label_smoothing", default=0.0, type=float, help="Label smoothing [0,1]: https://arxiv.org/pdf/1701.06548.pdf"
+    )
     parser.add_argument("--kl-coeff", dest="kl_coeff", type=float, default=1.0)
     parser.add_argument(
         "--image-recon-loss-coeff",
@@ -206,14 +209,16 @@ def main():
     dt_string = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M")
     model_checkpoint = ModelCheckpoint(
         dirpath="{}checkpoint/{}".format(args.run_name, dt_string),
-        save_top_k=2,
         monitor="t_loss",
+        save_last=True,
+        every_n_epochs=2,
+        save_top_k=2,
     )
 
     trainer = pl.Trainer(
         max_epochs=args.n_epochs,
         accelerator="gpu" if device.type == "cuda" else "cpu",
-        callbacks=[StochasticWeightAveraging(swa_lrs=0.005), model_checkpoint],
+        callbacks=[StochasticWeightAveraging(swa_lrs=0.05), model_checkpoint],
         check_val_every_n_epoch=args.validation_every,
         auto_lr_find=True,
         logger=logger,
@@ -231,6 +236,7 @@ def main():
         print_every=args.print_every,
         char_weights=char_weights,
         ce_recon_loss_scale=args.ce_recon_loss_scale,
+        label_smoothing=args.ce_label_smoothing,
         image_recon_loss_coeff=args.image_recon_loss_coeff,
         kl_coeff=args.kl_coeff,
         gumbel_tau_r=args.gumbel_tau_r,
@@ -243,8 +249,6 @@ def main():
 
     torchinfo.summary(vae.encoder, input_size=(7, 95, 64, 64))
     torchinfo.summary(vae.decoder, input_size=(7, 512))
-
-    # trainer.tune(vae)
 
     if not args.load:
         trainer.fit(

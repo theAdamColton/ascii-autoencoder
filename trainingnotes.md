@@ -137,4 +137,15 @@ Looking at the saved images from this training, they were all plack pixels! This
 
 Reloaded training from a good epoch, 16000. I lowered gumbel-tau which was 3e-5. Also increased batch size
 
+The NaNs were caused by an intermediate layer in the decoder, the last conv2d layer. I found this out by stepping through the layers with a batch that caused the NaNs. The outputs up the that last layer all looked good, and with reasonable non exploding values. I think the decoder started producing NaNs because the CE loss forces the log output of the model to approach 0, which causes the model's output to approach infty before the softmax layer.
+
 `bpython train.py --font-res 9 --font-zoom 21 --ce-recon-loss-scale 1.0 --kl-coeff 0.05 --image-recon-loss-coeff 50.0 --print-every 5 --run-name models/nov2022-hlr  --datapath ascii-dataset --n-workers 16 --learning-rate 4e-5 -b 186 -n 25000 --validation-prop 0.05 --validation-every 10 --space-deemph 100 --gumbel-tau-r 7e-6 --load models/nov2022-hlrcheckpoint/25-11-2022_14-53/epoch=16309-step=358820.ckpt`
+
+
+### Commit f27fb91b0791bf6b51fc5c97861e50d0efa57819 NLLL
+
+Trained for 25,000 epochs in about 2 days. Reconstructions don't look as good as those using CE loss. Seems like it is more confident to produce weird characters rather than the safe option. In this commit the reconstruction loss between base and predicted classes was not run through gumbel.
+
+`
+bpython train.py --font-res 9 --font-zoom 21 --ce-recon-loss-scale 1.0 --kl-coeff 0.05 --image-recon-loss-coeff 50.0 --print-every 5 --run-name models/nov2022-nlll  --datapath ascii-dataset --n-workers 16 --learning-rate 5e-5 -b 256 -n 25000 --validation-prop 0.05 --validation-every 10 --space-deemph 100 --gumbel-tau-r 1e-5 --log-name 50-imloss-se100-scratch --load models/nov2022-nlllcheckpoint/01-12-2022_20-47/epoch=1009-step=15150.ckpt
+`

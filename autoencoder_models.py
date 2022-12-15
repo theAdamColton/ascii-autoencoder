@@ -103,7 +103,10 @@ class VariationalEncoder(nn.Module):
         )
 
         self.mu_layer = nn.Linear(z_dim, z_dim)
-        self.var_layer = nn.Linear(z_dim, z_dim)
+        self.var_layer = nn.Sequential(
+        nn.Linear(z_dim, z_dim),
+            nn.LogSoftmax()
+        )
 
     def forward(self, x):
         """Returns mu, log_var"""

@@ -40,6 +40,7 @@ class LightningOneHotVAE(BaseVAE):
         lr=5e-5,
         print_every=10,
         char_weights=None,
+        label_smoothing=0.0,
         ce_recon_loss_scale=1.0,
         image_recon_loss_coeff=1.0,
         kl_coeff=1.0,
@@ -59,9 +60,7 @@ class LightningOneHotVAE(BaseVAE):
 
         self.l1_loss = torch.nn.L1Loss()
         self.mse_loss = torch.nn.MSELoss(size_average=True)
-        self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights)
-        self.nll_loss = torch.nn.NLLLoss2d(weight=char_weights)
-        self.bce_loss = torch.nn.BCELoss()
+        self.ce_loss = torch.nn.CrossEntropyLoss(weight=char_weights,label_smoothing=label_smoothing)
         self.ssim_loss = SSIM()
         self.train_dataloader_obj = train_dataloader
         self.val_dataloader_obj = val_dataloader
@@ -92,11 +91,6 @@ class LightningOneHotVAE(BaseVAE):
         ce_recon_loss *= self.ce_recon_loss_scale
         return ce_recon_loss
 
-    def calculate_nll_loss(self, x_hat, x):
-        nll_loss = self.nll_loss(x_hat, x.argmax(dim=1))
-        nll_loss *= self.ce_recon_loss_scale
-        return nll_loss
-
     def step(self, x, batch_idx):
         """Returns loss, logs"""
         # Will augment the input batch
@@ -110,13 +104,11 @@ class LightningOneHotVAE(BaseVAE):
 
         # CE Loss between original categorical vectors and reconstructed vectors
         if self.ce_recon_loss_scale > 0.0:
-            # Should do ce loss with gumbel?
-            ce_recon_loss = self.calculate_nll_loss(x_hat_log, x)
+            ce_recon_loss = self.calculate_ce_loss(x_hat_gumbel, x)
         else:
             ce_recon_loss = 0.0
         # Image reconstruction loss
         if self.image_recon_loss_coeff > 0.0:
-            # Gumbel step, with a non discrete forward, and backwards
             image_recon_loss = self.calculate_image_loss(x_hat_gumbel, x)
         else:
             image_recon_loss = 0.0
@@ -135,7 +127,6 @@ class LightningOneHotVAE(BaseVAE):
             "loss": loss,
             "gumbel_tau": self.gumbel_tau,
         }
-
         return loss, logs
 
     def on_train_epoch_end(self):
