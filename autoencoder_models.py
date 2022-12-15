@@ -97,14 +97,11 @@ class VariationalEncoder(nn.Module):
             # Input: batch_size x 8 x 8 x 8
             Flatten(),
             # Input: batch_size x 512
-            # nn.Linear(z_dim, z_dim),
-            # nn.ReLU(),
-            # nn.BatchNorm1d(z_dim),
         )
 
         self.mu_layer = nn.Linear(z_dim, z_dim)
         self.var_layer = nn.Sequential(
-        nn.Linear(z_dim, z_dim),
+            nn.Linear(z_dim, z_dim),
             nn.LogSoftmax()
         )
 
